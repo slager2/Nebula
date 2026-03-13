@@ -1,0 +1,33 @@
+# General
+.env
+.DS_Store
+
+# IDEs
+.idea/
+.vscode/
+
+# Build outputs
+*.exe
+*.out
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*/bin/
+*/obj/
+
+# Go
+backend/nebula_server.exe
+
+# Node/React
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/.pnp.*
+frontend/coverage/
+
+# Misc
+*.log
+tmp/
