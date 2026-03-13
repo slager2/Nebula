@@ -47,7 +47,10 @@ func main() {
 	api.Post("/nodes/:id/unlock", handlers.UnlockStar)
 
 	// Econ/Routine endpoints
+	api.Get("/dailies", handlers.GetDailies)
+	api.Post("/dailies", handlers.CreateDaily)
 	api.Post("/dailies/:id/complete", handlers.CompleteDaily)
+	api.Delete("/dailies/:id", handlers.DeleteDaily)
 
 	log.Println("Server is running on http://localhost:3000")
 	log.Fatal(app.Listen(":3000"))

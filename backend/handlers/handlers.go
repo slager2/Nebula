@@ -178,3 +178,67 @@ func GetUniverse(c *fiber.Ctx) error {
 		"data":    "dummy constellation data",
 	})
 }
+
+// GetDailies returns all daily tasks for the current user
+func GetDailies(c *fiber.Ctx) error {
+	userID := uint(1)
+	var tasks []models.DailyTask
+	database.DB.Where("user_id = ?", userID).Find(&tasks)
+	return c.JSON(tasks)
+}
+
+// CreateDaily creates a new daily task
+func CreateDaily(c *fiber.Ctx) error {
+	userID := uint(1)
+
+	type CreateRequest struct {
+		Title   string `json:"title"`
+		Type    string `json:"type"`
+		BaseEXP int    `json:"base_exp"`
+	}
+
+	var req CreateRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid payload"})
+	}
+
+	if req.Type != "INT" && req.Type != "STR" && req.Type != "AGI" {
+		return c.Status(400).JSON(fiber.Map{"error": "Type must be INT, STR, or AGI"})
+	}
+
+	if req.BaseEXP <= 0 {
+		req.BaseEXP = 50
+	}
+
+	task := models.DailyTask{
+		UserID:  userID,
+		Title:   req.Title,
+		Type:    req.Type,
+		BaseEXP: req.BaseEXP,
+	}
+
+	if err := database.DB.Create(&task).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to create task"})
+	}
+
+	return c.Status(201).JSON(task)
+}
+
+// DeleteDaily deletes a daily task by ID
+func DeleteDaily(c *fiber.Ctx) error {
+	userID := uint(1)
+	idParam := c.Params("id")
+	id, _ := strconv.Atoi(idParam)
+
+	var task models.DailyTask
+	if err := database.DB.Where("id = ? AND user_id = ?", id, userID).First(&task).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "Task not found"})
+	}
+
+	if err := database.DB.Delete(&task).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to delete task"})
+	}
+
+	return c.JSON(fiber.Map{"message": "Task deleted"})
+}
+
