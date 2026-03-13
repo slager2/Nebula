@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: nebula-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: nebula
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  api:
+    build: .
+    container_name: nebula-api
+    ports:
+      - "3000:3000"
+    environment:
+      # Overriding the DB connection string to point to the 'db' container
+      - DATABASE_URL=host=db user=postgres password=postgres dbname=nebula port=5432 sslmode=disable TimeZone=UTC
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:
