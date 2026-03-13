@@ -50,6 +50,7 @@ func GetConstellation(c *fiber.Ctx) error {
 		ID       string `json:"id"`
 		Name     string `json:"name"`
 		Unlocked bool   `json:"unlocked"`
+		Cost     int    `json:"cost"`
 	}
 
 	type LinkDTO struct {
@@ -65,6 +66,7 @@ func GetConstellation(c *fiber.Ctx) error {
 			ID:       strconv.Itoa(int(n.ID)),
 			Name:     n.Title,
 			Unlocked: n.IsUnlocked,
+			Cost:     n.Cost,
 		})
 
 		if n.ParentNodeID != nil {
@@ -105,14 +107,18 @@ func UnlockStar(c *fiber.Ctx) error {
 
 	userID := uint(1) // hardcoded for MVP
 
-	node, err := services.UnlockStar(database.DB, uint(id), userID)
+	node, user, statusCode, err := services.UnlockStar(database.DB, uint(id), userID)
 	if err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+		if statusCode == 0 {
+			statusCode = 400
+		}
+		return c.Status(statusCode).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	return c.JSON(fiber.Map{
-		"message": "Star unlocked successfully! Skill Point deducted.",
+		"message": "Star unlocked successfully!",
 		"node":    node,
+		"user":    user,
 	})
 }
 

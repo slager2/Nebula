@@ -2,73 +2,63 @@ package services
 
 import (
 	"log"
+	"time"
 
 	"github.com/robfig/cron/v3"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
-	"nebula-backend/models"
 )
 
 // InitCronJobs starts the background scheduler for daily reset and penalty logic.
 func InitCronJobs(db *gorm.DB) {
-	c := cron.New()
+	loc, err := time.LoadLocation("Asia/Qyzylorda")
+	if err != nil {
+		log.Fatal("Failed to load timezone Asia/Qyzylorda:", err)
+	}
 
-	// Run every day at exactly midnight (00:00)
-	_, err := c.AddFunc("0 0 * * *", func() {
-		log.Println("[CRON] Running daily reset and penalty job...")
+	c := cron.New(cron.WithLocation(loc))
 
-		err := db.Transaction(func(tx *gorm.DB) error {
-			// Find all users since penalties apply per user based on their tasks
-			var users []models.User
-			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Find(&users).Error; err != nil {
-				return err
-			}
+	// Run daily at exactly 00:00 Asia/Qyzylorda
+	_, err = c.AddFunc("0 0 * * *", func() {
+		log.Println("[CRON] Running daily reset and penalty job (Asia/Qyzylorda)...")
 
-			// Process penalties for each user
-			for i := range users {
-				user := &users[i]
-				
-				// Count uncompleted tasks from yesterday (in MVP any task that is IsCompleted=false when cron runs)
-				var uncompletedTasks int64
-				if err := tx.Model(&models.DailyTask{}).Where("user_id = ? AND is_completed = ?", user.ID, false).Count(&uncompletedTasks).Error; err != nil {
-					log.Println("[CRON ERROR] Failed to count uncompleted tasks for user", user.ID, err)
-					continue
-				}
-
-				if uncompletedTasks > 0 {
-					log.Printf("[CRON] User %d failed %d tasks. Applying penalty.\n", user.ID, uncompletedTasks)
-					user.HP -= int(uncompletedTasks)
-					
-					// Level drop logic if HP <= 0
-					if user.HP <= 0 {
-						user.Level--
-						if user.Level < 1 {
-							user.Level = 1
-						}
-						user.HP = 100 // Reset HP after level drop
-						log.Printf("[CRON] User %d dropped to Level %d!\n", user.ID, user.Level)
-					}
-					
-					if err := tx.Save(user).Error; err != nil {
-						log.Println("[CRON ERROR] Failed to save user penalty", err)
-						continue
-					}
-				}
-			}
-
-			// Reset all tasks to incomplete
-			if err := tx.Model(&models.DailyTask{}).Where("1 = 1").Update("is_completed", false).Error; err != nil {
-				log.Println("[CRON ERROR] Failed to reset daily tasks", err)
-				return err
-			}
-
-			log.Println("[CRON] Daily reset and penalty job completed successfully.")
-			return nil
-		})
-
-		if err != nil {
-			log.Println("[CRON ERROR] Transaction failed:", err)
+		// Step 1: Penalty — Subtract 15 HP per uncompleted task, floor at 0
+		penaltyResult := db.Exec(`
+			UPDATE users SET hp = GREATEST(0, hp - (
+				SELECT COALESCE(COUNT(*), 0) * 15
+				FROM daily_tasks
+				WHERE daily_tasks.user_id = users.id AND daily_tasks.is_completed = false
+			))
+		`)
+		if penaltyResult.Error != nil {
+			log.Println("[CRON ERROR] Failed to apply HP penalty:", penaltyResult.Error)
+			return
 		}
+		log.Printf("[CRON] HP penalty applied to %d users.\n", penaltyResult.RowsAffected)
+
+		// Step 2: Death mechanic — If HP = 0, deduct 1 level (min 1), reset EXP to 0, restore HP to 100
+		deathResult := db.Exec(`
+			UPDATE users
+			SET level = GREATEST(1, level - 1),
+			    exp = 0,
+			    hp = 100
+			WHERE hp = 0
+		`)
+		if deathResult.Error != nil {
+			log.Println("[CRON ERROR] Failed to apply death mechanic:", deathResult.Error)
+			return
+		}
+		if deathResult.RowsAffected > 0 {
+			log.Printf("[CRON] Death mechanic triggered for %d users.\n", deathResult.RowsAffected)
+		}
+
+		// Step 3: Reset all daily tasks
+		resetResult := db.Exec(`UPDATE daily_tasks SET is_completed = false`)
+		if resetResult.Error != nil {
+			log.Println("[CRON ERROR] Failed to reset daily tasks:", resetResult.Error)
+			return
+		}
+
+		log.Println("[CRON] Daily reset and penalty job completed successfully.")
 	})
 
 	if err != nil {
@@ -76,5 +66,5 @@ func InitCronJobs(db *gorm.DB) {
 	}
 
 	c.Start()
-	log.Println("Cron scheduler started.")
+	log.Println("Cron scheduler started (Asia/Qyzylorda timezone).")
 }

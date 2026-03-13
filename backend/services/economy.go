@@ -72,61 +72,75 @@ func CompleteDaily(db *gorm.DB, taskID uint) (*models.User, error) {
 	return &user, err
 }
 
-// UnlockStar spends a skill point to unlock a node in the tree.
-func UnlockStar(db *gorm.DB, nodeID uint, userID uint) (*models.StarNode, error) {
+// UnlockStar spends skill points to unlock a node in the tree.
+func UnlockStar(db *gorm.DB, nodeID uint, userID uint) (*models.StarNode, *models.User, int, error) {
 	var user models.User
 	var node models.StarNode
+	var statusCode int
 
 	err := db.Transaction(func(tx *gorm.DB) error {
+		// Lock user row
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&user, userID).Error; err != nil {
+			statusCode = 404
 			return err
 		}
 
-		if user.SkillPoints < 1 {
-			return errors.New("not enough skill points")
-		}
-
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&node, nodeID).Error; err != nil {
+		// Fetch node
+		if err := tx.First(&node, nodeID).Error; err != nil {
+			statusCode = 404
 			return err
 		}
 
-		// Verify the node belongs to the correct user
+		// Verify ownership
 		var constellation models.Constellation
 		if err := tx.First(&constellation, node.ConstellationID).Error; err != nil {
+			statusCode = 404
 			return err
 		}
 		if constellation.UserID != userID {
-			return errors.New("unauthorized to unlock this node")
+			statusCode = 403
+			return errors.New("unauthorized")
 		}
 
 		if node.IsUnlocked {
+			statusCode = 400
 			return errors.New("node already unlocked")
 		}
 
-		// Parent node check
+		// Balance check
+		if user.SkillPoints < node.Cost {
+			statusCode = 402
+			return errors.New("not enough skill points")
+		}
+
+		// Parent check
 		if node.ParentNodeID != nil {
 			var parent models.StarNode
 			if err := tx.First(&parent, *node.ParentNodeID).Error; err != nil {
+				statusCode = 404
 				return err
 			}
 			if !parent.IsUnlocked {
-				return errors.New("parent node must be unlocked first")
+				statusCode = 403
+				return errors.New("parent skill must be unlocked first")
 			}
 		}
 
-		// State updates
-		user.SkillPoints--
+		// Mutation
+		user.SkillPoints -= node.Cost
 		node.IsUnlocked = true
 
 		if err := tx.Save(&user).Error; err != nil {
+			statusCode = 500
 			return err
 		}
 		if err := tx.Save(&node).Error; err != nil {
+			statusCode = 500
 			return err
 		}
 
 		return nil
 	})
 
-	return &node, err
+	return &node, &user, statusCode, err
 }

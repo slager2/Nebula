@@ -1,15 +1,16 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
+import useStore from './store/useStore';
 
 const dummyData = {
   nodes: [
-    { id: '1', name: 'Cosmic Awareness', desc: 'The foundation of the universe.', unlocked: true },
-    { id: '2', name: 'Astral Projection', desc: 'Leave your physical form behind.', unlocked: true },
-    { id: '3', name: 'Quantum Tunneling', desc: 'Move through solid matter.', unlocked: false },
-    { id: '4', name: 'Void Singularity', desc: 'Generate a miniature black hole. Deals massive cosmic damage.', unlocked: false },
-    { id: '5', name: 'Stellar Burst', desc: 'Release energy of a dying star.', unlocked: false },
-    { id: '6', name: 'Nebula Weave', desc: 'Control cosmic dust.', unlocked: true },
-    { id: '7', name: 'Supernova', desc: 'Ultimate explosive power.', unlocked: false },
+    { id: '1', name: 'Cosmic Awareness', desc: 'The foundation of the universe.', unlocked: true, cost: 1 },
+    { id: '2', name: 'Astral Projection', desc: 'Leave your physical form behind.', unlocked: true, cost: 1 },
+    { id: '3', name: 'Quantum Tunneling', desc: 'Move through solid matter.', unlocked: false, cost: 1 },
+    { id: '4', name: 'Void Singularity', desc: 'Generate a miniature black hole.', unlocked: false, cost: 2 },
+    { id: '5', name: 'Stellar Burst', desc: 'Release energy of a dying star.', unlocked: false, cost: 1 },
+    { id: '6', name: 'Nebula Weave', desc: 'Control cosmic dust.', unlocked: true, cost: 1 },
+    { id: '7', name: 'Supernova', desc: 'Ultimate explosive power.', unlocked: false, cost: 3 },
   ],
   links: [
     { source: '1', target: '2' },
@@ -48,7 +49,8 @@ const drawStar = (ctx, cx, cy, spikes, outerRadius, innerRadius) => {
 export default function CosmicTree({ constellationId, onNodeClick }) {
   const fgRef = useRef();
   const containerRef = useRef();
-  const [graphData, setGraphData] = useState(dummyData);
+  const graphData = useStore((s) => s.graphData);
+  const setGraphData = useStore((s) => s.setGraphData);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
   const [hoveredNode, setHoveredNode] = useState(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
@@ -93,13 +95,17 @@ export default function CosmicTree({ constellationId, onNodeClick }) {
       .then((data) => {
         if (data.nodes && data.nodes.length > 0) {
           setGraphData({ nodes: data.nodes, links: data.links || [] });
+        } else {
+          setGraphData(dummyData);
         }
       })
       .catch(err => {
         console.warn("Backend unavailable or tree empty. Rendering dummy data.", err);
         setGraphData(dummyData);
       });
-  }, [constellationId]);
+  }, [constellationId, setGraphData]);
+
+  const currentGraphData = graphData || dummyData;
 
   return (
     <div 
@@ -107,47 +113,39 @@ export default function CosmicTree({ constellationId, onNodeClick }) {
       className="w-full h-full relative overflow-hidden bg-[#0B0C10]" 
       onMouseMove={handleMouseMove}
       style={{
-        backgroundImage: 'radial-gradient(circle at center, #1b0f3a 0%, #0B0C10 70%)' // Space vibe
+        backgroundImage: 'radial-gradient(circle at center, #1b0f3a 0%, #0B0C10 70%)'
       }}
     >
       <ForceGraph2D
         ref={fgRef}
         width={dimensions.width}
         height={dimensions.height}
-        graphData={graphData}
-        backgroundColor="rgba(0,0,0,0)" // Transparent to show space vibe bg
-        nodeLabel="" // Disable default tooltip
+        graphData={currentGraphData}
+        backgroundColor="rgba(0,0,0,0)"
+        nodeLabel=""
         
-        // Link Styling (Glowing neural pathways)
         linkColor={() => 'rgba(0, 255, 255, 0.4)'}
         linkWidth={(link) => {
-          const sourceUnlocked = link.source.unlocked || graphData.nodes.find(n => n.id === link.source)?.unlocked;
-          const targetUnlocked = link.target.unlocked || graphData.nodes.find(n => n.id === link.target)?.unlocked;
+          const sourceUnlocked = link.source.unlocked || currentGraphData.nodes.find(n => n.id === link.source)?.unlocked;
+          const targetUnlocked = link.target.unlocked || currentGraphData.nodes.find(n => n.id === link.target)?.unlocked;
           return (sourceUnlocked && targetUnlocked) ? 2.5 : 1.5;
         }}
         linkDirectionalParticles={(link) => {
-          const sourceUnlocked = link.source.unlocked || graphData.nodes.find(n => n.id === link.source)?.unlocked;
-          const targetUnlocked = link.target.unlocked || graphData.nodes.find(n => n.id === link.target)?.unlocked;
+          const sourceUnlocked = link.source.unlocked || currentGraphData.nodes.find(n => n.id === link.source)?.unlocked;
+          const targetUnlocked = link.target.unlocked || currentGraphData.nodes.find(n => n.id === link.target)?.unlocked;
           return (sourceUnlocked && targetUnlocked) ? 2 : 0;
         }}
         linkDirectionalParticleSpeed={0.005}
         
-        // Custom Glowing 4-Point Star Nodes
         nodeCanvasObject={(node, ctx, globalScale) => {
           const isHovered = hoveredNode && hoveredNode.id === node.id;
           
-          // Outer Glow
           ctx.shadowBlur = isHovered ? 25 : 15;
           ctx.shadowColor = node.unlocked ? '#00ffff' : '#8a2be2'; 
-          
-          // Inner Fill Color
           ctx.fillStyle = node.unlocked ? '#ffffff' : '#4b0082';
 
-          // Draw custom 4-point star
           const size = isHovered ? 8 : 5;
           drawStar(ctx, node.x, node.y, 4, size, size / 2.5);
-
-          // Reset shadow to avoid trailing artifacts
           ctx.shadowBlur = 0;
         }}
 
@@ -167,7 +165,7 @@ export default function CosmicTree({ constellationId, onNodeClick }) {
         maxZoom={4}
       />
 
-      {/* Glassmorphism Hover Tooltip Overlay */}
+      {/* Glassmorphism Hover Tooltip */}
       {hoveredNode && (
         <div 
           className="absolute z-50 pointer-events-none transition-opacity duration-200"
@@ -177,7 +175,6 @@ export default function CosmicTree({ constellationId, onNodeClick }) {
           }}
         >
           <div className="bg-[#0B0C10]/80 backdrop-blur-md border border-cyan-500/30 rounded-xl p-4 w-72 shadow-[0_0_20px_rgba(0,255,255,0.15)] text-left flex flex-col gap-2 relative overflow-hidden">
-            {/* Inner background glow */}
             <div className="absolute top-0 right-0 w-24 h-24 bg-cyan-500/10 rounded-full blur-2xl -mr-12 -mt-12"></div>
             
             <h3 className="font-bold text-cyan-400 text-[13px] uppercase tracking-wider truncate border-b border-cyan-500/20 pb-2 mb-1">
@@ -190,7 +187,7 @@ export default function CosmicTree({ constellationId, onNodeClick }) {
             
             <div className="text-[11px] text-slate-400 font-mono mt-1 flex flex-col gap-1">
               <span>Status: <span className={hoveredNode.unlocked ? "text-cyan-400" : "text-purple-400 font-bold"}>{hoveredNode.unlocked ? "UNLOCKED" : "LOCKED"}</span></span>
-              {!hoveredNode.unlocked && <span>Cost: <span className="text-cyan-400">1 SP</span></span>}
+              {!hoveredNode.unlocked && <span>Cost: <span className="text-cyan-400">{hoveredNode.cost || 1} SP</span></span>}
             </div>
           </div>
         </div>

@@ -157,7 +157,7 @@ export default function Terminal() {
               key={task.ID}
               className={`group w-full text-left rounded-xl p-4 border transition-all duration-300 relative overflow-hidden flex items-center gap-4 ${
                 task.IsCompleted
-                  ? 'bg-white/[0.01] border-white/5 opacity-40'
+                  ? 'bg-white/[0.04] border-slate-700/50'
                   : `bg-white/[0.03] ${style.border} hover:bg-white/[0.05]`
               } ${isFlashing ? 'ring-2 ring-emerald-400/40' : ''}`}
             >
@@ -184,18 +184,18 @@ export default function Terminal() {
 
               {/* Info */}
               <div className="flex-1 min-w-0">
-                <p className={`font-medium text-sm truncate ${task.IsCompleted ? 'line-through text-slate-600' : 'text-white'}`}>
+                <p className={`font-medium text-sm truncate ${task.IsCompleted ? 'line-through text-slate-400' : 'text-white'}`}>
                   {task.Title}
                 </p>
               </div>
 
               {/* Type badge */}
-              <span className={`text-[10px] font-bold tracking-wider px-2.5 py-1 rounded-full ${style.bg} ${style.color} ${style.border} border shrink-0`}>
+              <span className={`text-[10px] font-bold tracking-wider px-2.5 py-1 rounded-full ${style.bg} ${style.color} ${style.border} border shrink-0 ${task.IsCompleted ? 'opacity-50' : ''}`}>
                 {style.icon} {task.Type}
               </span>
 
               {/* XP */}
-              <span className={`text-xs font-mono shrink-0 ${task.IsCompleted ? 'text-slate-600' : 'text-blue-400'}`}>
+              <span className={`text-xs font-mono shrink-0 ${task.IsCompleted ? 'text-slate-500' : 'text-blue-400'}`}>
                 +{task.BaseEXP} XP
               </span>
 
@@ -203,7 +203,7 @@ export default function Terminal() {
               <button
                 onClick={(e) => { e.stopPropagation(); handleDelete(task.ID); }}
                 disabled={deleting === task.ID}
-                className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-600 hover:text-red-400 shrink-0 p-1 disabled:animate-pulse"
+                className="opacity-40 group-hover:opacity-100 transition-opacity text-slate-500 hover:text-red-400 shrink-0 p-1 disabled:animate-pulse"
                 title="Delete task"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>

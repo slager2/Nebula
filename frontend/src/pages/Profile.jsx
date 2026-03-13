@@ -2,6 +2,21 @@ import { useState } from 'react';
 import useStore from '../store/useStore';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip } from 'recharts';
 
+function getRank(level) {
+  if (level >= 40) return { name: 'S-Rank', color: 'text-yellow-400', shadow: '0 0 12px rgba(250,204,21,0.5)' };
+  if (level >= 30) return { name: 'B-Rank', color: 'text-purple-400', shadow: null };
+  if (level >= 20) return { name: 'C-Rank', color: 'text-blue-400', shadow: null };
+  if (level >= 10) return { name: 'D-Rank', color: 'text-green-400', shadow: null };
+  return { name: 'E-Rank', color: 'text-gray-400', shadow: null };
+}
+
+function getDominantStatGlow(statINT, statSTR, statAGI) {
+  const max = Math.max(statINT, statSTR, statAGI);
+  if (max === statINT) return '0 0 30px rgba(6,182,212,0.15), 0 0 60px rgba(6,182,212,0.08)';
+  if (max === statSTR) return '0 0 30px rgba(239,68,68,0.15), 0 0 60px rgba(239,68,68,0.08)';
+  return '0 0 30px rgba(168,85,247,0.15), 0 0 60px rgba(168,85,247,0.08)';
+}
+
 function ProgressRing({ value, max, label, sublabel, color, glowColor, size = 130 }) {
   const strokeWidth = 6;
   const radius = (size - strokeWidth) / 2;
@@ -25,15 +40,15 @@ function ProgressRing({ value, max, label, sublabel, color, glowColor, size = 13
             strokeDashoffset={offset}
             strokeLinecap="round"
             className="transition-all duration-700 ease-out"
-            style={{ filter: `drop-shadow(0 0 8px ${glowColor})` }}
+            style={{ filter: `drop-shadow(0 0 10px ${glowColor})` }}
           />
         </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <p className="text-2xl font-black text-white">{value}</p>
-          <p className="text-[10px] text-slate-500 tracking-wider uppercase">{label}</p>
+        <div className="absolute inset-0 flex items-center justify-center flex-col">
+          <p className="text-2xl font-black text-white leading-none">{value}</p>
+          <p className="text-[10px] text-slate-500 tracking-wider uppercase mt-0.5">{label}</p>
         </div>
       </div>
-      {sublabel && <p className="text-[10px] text-slate-600 mt-1 font-mono">{sublabel}</p>}
+      {sublabel && <p className="text-[10px] text-slate-600 mt-1.5 font-mono">{sublabel}</p>}
     </div>
   );
 }
@@ -72,20 +87,35 @@ export default function Profile() {
     );
   }
 
+  const maxExp = user.Level * 100;
+  const rank = getRank(user.Level);
+  const radarGlow = getDominantStatGlow(user.StatINT, user.StatSTR, user.StatAGI);
+
   const radarData = [
-    { stat: 'Intelligence', value: user.StatINT, fullMark: 100 },
-    { stat: 'Strength', value: user.StatSTR, fullMark: 100 },
-    { stat: 'Agility', value: user.StatAGI, fullMark: 100 },
+    { stat: 'INT', value: user.StatINT, fullMark: 100 },
+    { stat: 'STR', value: user.StatSTR, fullMark: 100 },
+    { stat: 'AGI', value: user.StatAGI, fullMark: 100 },
   ];
 
   return (
     <div className="h-full p-8 flex flex-col gap-6 max-w-5xl mx-auto">
       {/* Header */}
-      <div>
-        <h2 className="text-3xl font-black tracking-tight text-white">
-          OPERATOR <span className="text-blue-400">PROFILE</span>
-        </h2>
-        <p className="text-sm text-slate-500 mt-1">System diagnostics & combat readiness</p>
+      <div className="flex items-end justify-between">
+        <div>
+          <h2 className="text-3xl font-black tracking-tight text-white">
+            OPERATOR <span className="text-blue-400">PROFILE</span>
+          </h2>
+          <p className="text-sm text-slate-500 mt-1">System diagnostics & combat readiness</p>
+        </div>
+        <div className="text-right">
+          <span
+            className={`text-lg font-black tracking-wider ${rank.color}`}
+            style={rank.shadow ? { textShadow: rank.shadow } : {}}
+          >
+            {rank.name}
+          </span>
+          <p className="text-[10px] text-slate-500 font-mono mt-0.5">Lv.{user.Level}</p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1">
@@ -99,23 +129,31 @@ export default function Profile() {
               max={100}
               label="HP"
               color="#3b82f6"
-              glowColor="rgba(59,130,246,0.5)"
+              glowColor="rgba(59,130,246,0.6)"
             />
             <ProgressRing
               value={user.EXP}
-              max={user.Level * 100}
+              max={maxExp}
               label="EXP"
-              sublabel={`${user.EXP} / ${user.Level * 100}`}
+              sublabel={`${user.EXP} / ${maxExp} XP`}
               color="#8b5cf6"
-              glowColor="rgba(139,92,246,0.5)"
+              glowColor="rgba(139,92,246,0.6)"
             />
           </div>
 
-          {/* SP & Level bar */}
+          {/* Level + Rank + SP */}
           <div className="mt-4 space-y-3">
             <div className="flex items-center justify-between p-3 rounded-lg bg-white/[0.03] border border-white/5">
               <span className="text-xs text-slate-400">Level</span>
-              <span className="text-lg font-black text-white">{user.Level}</span>
+              <div className="flex items-center gap-2">
+                <span
+                  className={`text-xs font-bold ${rank.color}`}
+                  style={rank.shadow ? { textShadow: rank.shadow } : {}}
+                >
+                  {rank.name}
+                </span>
+                <span className="text-lg font-black text-white">{user.Level}</span>
+              </div>
             </div>
             <div className="flex items-center justify-between p-3 rounded-lg bg-white/[0.03] border border-white/5">
               <span className="text-xs text-slate-400">Skill Points</span>
@@ -126,17 +164,21 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* Radar Chart Card */}
-        <div className="bg-white/[0.03] backdrop-blur-md border border-white/5 rounded-2xl p-6 flex flex-col">
-          <h3 className="text-xs font-bold tracking-[0.2em] text-slate-500 uppercase mb-4">Combat Radar</h3>
+        {/* Radar Chart Card — Dynamic Glow */}
+        <div
+          className="bg-white/[0.03] backdrop-blur-md border border-white/5 rounded-2xl p-6 flex flex-col transition-shadow duration-500"
+          style={{ boxShadow: radarGlow }}
+        >
+          <h3 className="text-xs font-bold tracking-[0.2em] text-slate-500 uppercase mb-2">Combat Radar</h3>
 
-          <div className="flex-1 flex items-center justify-center min-h-[250px]">
-            <ResponsiveContainer width="100%" height={280}>
-              <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
-                <PolarGrid stroke="#1e293b" strokeWidth={1} />
+          <div className="flex-1 flex items-center justify-center" style={{ minHeight: 240 }}>
+            <ResponsiveContainer width="100%" height={260}>
+              <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="65%">
+                <PolarGrid stroke="#1e293b" strokeWidth={0.5} gridType="polygon" />
                 <PolarAngleAxis
                   dataKey="stat"
-                  tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }}
+                  tick={{ fill: '#9ca3af', fontSize: 12, fontFamily: 'monospace', fontWeight: 700 }}
+                  axisLine={false}
                 />
                 <PolarRadiusAxis
                   angle={90}
@@ -149,9 +191,9 @@ export default function Profile() {
                   dataKey="value"
                   stroke="#66FCF1"
                   fill="#66FCF1"
-                  fillOpacity={0.25}
+                  fillOpacity={0.3}
                   strokeWidth={2}
-                  dot={{ r: 4, fill: '#66FCF1', strokeWidth: 0 }}
+                  dot={{ r: 5, fill: '#66FCF1', strokeWidth: 0, filter: 'drop-shadow(0 0 4px #66FCF1)' }}
                 />
                 <Tooltip content={<CustomTooltip />} />
               </RadarChart>
@@ -159,18 +201,18 @@ export default function Profile() {
           </div>
 
           {/* Stat values below chart */}
-          <div className="grid grid-cols-3 gap-2 mt-2">
+          <div className="grid grid-cols-3 gap-2 mt-1">
             <div className="text-center p-2 rounded-lg bg-cyan-400/5 border border-cyan-400/10">
               <p className="text-lg font-black text-cyan-400">{user.StatINT}</p>
-              <p className="text-[10px] text-slate-500 tracking-wider">🧠 INT</p>
+              <p className="text-[10px] text-slate-500 tracking-wider font-mono">🧠 INT</p>
             </div>
             <div className="text-center p-2 rounded-lg bg-red-400/5 border border-red-400/10">
               <p className="text-lg font-black text-red-400">{user.StatSTR}</p>
-              <p className="text-[10px] text-slate-500 tracking-wider">💪 STR</p>
+              <p className="text-[10px] text-slate-500 tracking-wider font-mono">💪 STR</p>
             </div>
             <div className="text-center p-2 rounded-lg bg-lime-400/5 border border-lime-400/10">
               <p className="text-lg font-black text-lime-400">{user.StatAGI}</p>
-              <p className="text-[10px] text-slate-500 tracking-wider">⚡ AGI</p>
+              <p className="text-[10px] text-slate-500 tracking-wider font-mono">⚡ AGI</p>
             </div>
           </div>
         </div>

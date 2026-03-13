@@ -30,10 +30,11 @@ type Constellation struct {
 
 type StarNode struct {
 	ID              uint   `gorm:"primaryKey"`
-	ConstellationID uint   `gorm:"index"` // Belongs to a constellation
-	ParentNodeID    *uint  `gorm:"index"` // Nullable for root nodes
-	Title           string // e.g., "Borrow Checker"
+	ConstellationID uint   `gorm:"index"`
+	ParentNodeID    *uint  `gorm:"index"`
+	Title           string
 	Description     string
+	Cost            int    `gorm:"default:1"`
 	IsUnlocked      bool   `gorm:"default:false"`
 }
 

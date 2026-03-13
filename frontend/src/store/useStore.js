@@ -94,6 +94,30 @@ const useStore = create((set, get) => ({
   },
 
   setDailyTasks: (tasks) => set({ dailyTasks: tasks }),
+
+  graphData: null,
+  setGraphData: (data) => set({ graphData: data }),
+
+  unlockNode: async (nodeId) => {
+    try {
+      const res = await fetch(`${API}/nodes/${nodeId}/unlock`, { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        set({ user: data.user });
+        const gd = get().graphData;
+        if (gd) {
+          const updatedNodes = gd.nodes.map((n) =>
+            n.id === String(nodeId) || n.id === nodeId ? { ...n, unlocked: true } : n
+          );
+          set({ graphData: { ...gd, nodes: updatedNodes } });
+        }
+      }
+      return { ok: res.ok, data };
+    } catch (e) {
+      console.error('Failed to unlock node', e);
+      return { ok: false };
+    }
+  },
 }));
 
 export default useStore;

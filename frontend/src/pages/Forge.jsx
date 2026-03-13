@@ -4,11 +4,13 @@ import CosmicTree from '../CosmicTree';
 
 export default function Forge() {
   const user = useStore((s) => s.user);
+  const unlockNode = useStore((s) => s.unlockNode);
+  const fetchProfile = useStore((s) => s.fetchProfile);
   const [constellationId, setConstellationId] = useState(1);
   const [topicInput, setTopicInput] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedNode, setSelectedNode] = useState(null);
-  const fetchProfile = useStore((s) => s.fetchProfile);
+  const [unlocking, setUnlocking] = useState(false);
 
   const generateTree = async (e) => {
     e.preventDefault();
@@ -31,21 +33,39 @@ export default function Forge() {
     }
   };
 
-  const unlockNode = async () => {
-    if (!selectedNode || !user) return;
-    try {
-      const res = await fetch(`http://localhost:3000/api/v1/nodes/${selectedNode.id}/unlock`, { method: 'POST' });
-      const data = await res.json();
-      if (res.ok) {
-        fetchProfile();
-        setConstellationId(null);
-        setTimeout(() => setConstellationId(1), 50);
-        setSelectedNode(null);
-      } else {
-        alert(data.error);
+  const handleNodeClick = (node) => {
+    setSelectedNode(node);
+
+    if (!node.unlocked) {
+      const cost = node.cost || 1;
+      const confirmed = window.confirm(`Unlock "${node.name}" for ${cost} SP?`);
+      if (confirmed) {
+        handleUnlock(node, cost);
       }
-    } catch (e) {
-      console.error(e);
+    }
+  };
+
+  const handleUnlock = async (node, cost) => {
+    if (!user || user.SkillPoints < cost) {
+      alert('Not enough Skill Points.');
+      return;
+    }
+    setUnlocking(true);
+    const result = await unlockNode(node.id);
+    setUnlocking(false);
+    if (result.ok) {
+      setSelectedNode(null);
+    } else {
+      alert(result.data?.error || 'Failed to unlock node.');
+    }
+  };
+
+  const handlePanelUnlock = async () => {
+    if (!selectedNode || selectedNode.unlocked) return;
+    const cost = selectedNode.cost || 1;
+    const confirmed = window.confirm(`Unlock "${selectedNode.name}" for ${cost} SP?`);
+    if (confirmed) {
+      await handleUnlock(selectedNode, cost);
     }
   };
 
@@ -54,7 +74,7 @@ export default function Forge() {
       {/* Graph Area */}
       <div className="flex-1 relative">
         {constellationId ? (
-          <CosmicTree constellationId={constellationId} onNodeClick={(node) => setSelectedNode(node)} />
+          <CosmicTree constellationId={constellationId} onNodeClick={handleNodeClick} />
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center text-slate-500">
             <h1 className="text-4xl font-bold tracking-tighter text-white/20 mb-4">FORGE SYSTEM</h1>
@@ -83,6 +103,14 @@ export default function Forge() {
           </button>
         </form>
 
+        {/* SP Display */}
+        <div className="flex items-center justify-between p-3 rounded-lg bg-white/[0.03] border border-white/5 mb-4">
+          <span className="text-xs text-slate-400">Skill Points</span>
+          <span className="text-lg font-black text-yellow-400" style={{ textShadow: '0 0 10px rgba(250,204,21,0.4)' }}>
+            {user?.SkillPoints || 0} SP
+          </span>
+        </div>
+
         {/* Node Inspector */}
         <div
           className={`p-4 border border-white/10 rounded-xl bg-slate-900/60 backdrop-blur transition-all duration-300 ${
@@ -104,11 +132,12 @@ export default function Forge() {
           <p className="text-xs text-slate-400 mb-4">{selectedNode?.desc}</p>
           {!selectedNode?.unlocked && (
             <button
-              onClick={unlockNode}
-              disabled={!user || user.SkillPoints < 1}
-              className="w-full bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 hover:text-white border border-blue-500/50 rounded-lg py-2 text-xs uppercase tracking-wider font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={handlePanelUnlock}
+              disabled={!user || user.SkillPoints < (selectedNode?.cost || 1) || unlocking}
+              className="w-full bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-400 hover:text-white border border-cyan-500/30 rounded-lg py-2 text-xs uppercase tracking-wider font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ boxShadow: '0 0 12px rgba(6,182,212,0.15)' }}
             >
-              Allocate Point (1 SP)
+              {unlocking ? 'UNLOCKING...' : `Unlock (${selectedNode?.cost || 1} SP)`}
             </button>
           )}
         </div>
