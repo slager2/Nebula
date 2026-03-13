@@ -98,6 +98,9 @@ const useStore = create((set, get) => ({
   graphData: null,
   setGraphData: (data) => set({ graphData: data }),
 
+  activeNode: null,
+  setActiveNode: (node) => set({ activeNode: node }),
+
   unlockNode: async (nodeId) => {
     try {
       const res = await fetch(`${API}/nodes/${nodeId}/unlock`, { method: 'POST' });

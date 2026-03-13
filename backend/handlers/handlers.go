@@ -46,11 +46,19 @@ func GetConstellation(c *fiber.Ctx) error {
 	var nodes []models.StarNode
 	database.DB.Where("constellation_id = ?", id).Find(&nodes)
 
+	type ResourceDTO struct {
+		Title string `json:"title"`
+		Type  string `json:"type"`
+		URL   string `json:"url"`
+	}
+
 	type NodeDTO struct {
-		ID       string `json:"id"`
-		Name     string `json:"name"`
-		Unlocked bool   `json:"unlocked"`
-		Cost     int    `json:"cost"`
+		ID        string        `json:"id"`
+		Name      string        `json:"name"`
+		Desc      string        `json:"desc"`
+		Unlocked  bool          `json:"unlocked"`
+		Cost      int           `json:"cost"`
+		Resources []ResourceDTO `json:"resources"`
 	}
 
 	type LinkDTO struct {
@@ -62,11 +70,18 @@ func GetConstellation(c *fiber.Ctx) error {
 	var resLinks []LinkDTO
 
 	for _, n := range nodes {
+		var resources []ResourceDTO
+		for _, r := range n.Resources {
+			resources = append(resources, ResourceDTO{Title: r.Title, Type: r.Type, URL: r.URL})
+		}
+
 		resNodes = append(resNodes, NodeDTO{
-			ID:       strconv.Itoa(int(n.ID)),
-			Name:     n.Title,
-			Unlocked: n.IsUnlocked,
-			Cost:     n.Cost,
+			ID:        strconv.Itoa(int(n.ID)),
+			Name:      n.Title,
+			Desc:      n.Description,
+			Unlocked:  n.IsUnlocked,
+			Cost:      n.Cost,
+			Resources: resources,
 		})
 
 		if n.ParentNodeID != nil {

@@ -19,7 +19,7 @@
 
 # Go
 backend/nebula_server.exe
-
+backend/repomix-output.xml
 # Node/React
 frontend/node_modules/
 frontend/.next/

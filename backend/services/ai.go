@@ -9,21 +9,29 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
 	"nebula-backend/models"
 )
 
+type LLMResource struct {
+	Title string `json:"title"`
+	Type  string `json:"type"`
+	URL   string `json:"url"`
+}
+
 type LLMNodeResponse struct {
-	ID          uint   `json:"id"`
-	ParentID    *uint  `json:"parent_id"` // null for root
-	Title       string `json:"title"`
-	Description string `json:"description"`
+	ID          uint          `json:"id"`
+	ParentID    *uint         `json:"parent_id"`
+	Title       string        `json:"title"`
+	Description string        `json:"description"`
+	Resources   []LLMResource `json:"resources"`
 }
 
 var promptTemplate = `
-You are an elite System Architect and RPG Game Designer. The user (an INTP Backend Developer) is building a "System" to gamify their life and learning.
+You are an elite System Architect and RPG Game Designer. The user is building a "System" to gamify learning.
 They want to learn a new skill/topic and need a "Constellation" (a passive skill tree, like in Path of Exile).
 
 Your task: Break down the provided Topic into a logical, progressive skill tree.
@@ -31,16 +39,26 @@ Rules:
 1. The tree MUST have exactly 1 root node (level 1 knowledge).
 2. The tree must branch out logically into specialized sub-skills (total 10-15 nodes).
 3. Progression must make sense (e.g., you cannot unlock "Concurrency" before "Syntax").
-4. Tone: Technical, concise, gamified ("Unlock this node to master X").
-5. Return ONLY a valid JSON array of objects. NO markdown blocks or code fences, NO extra text.
+4. Each node MUST include a "resources" array with 2-4 study resources.
+5. For the "url" field, generate a highly probable Google Search URL or YouTube Search URL for the topic (e.g., "https://www.youtube.com/results?search_query=golang+channels" or "https://www.google.com/search?q=rust+borrow+checker+tutorial").
+6. Tone: Technical, concise, gamified.
+7. Return ONLY a valid JSON array. NO markdown, NO code fences, NO extra text.
 
 JSON Schema for EACH object in the array:
 {
   "id": integer (Sequential, start at 1),
-  "parent_id": integer or null (Use null ONLY for the 1 root node. All other nodes must have a valid parent_id referencing an earlier id),
-  "title": string (Short, punchy skill name, max 3-4 words),
-  "description": string (1-2 sentences explaining what unlocking this node grants the user)
+  "parent_id": integer or null (null ONLY for root node),
+  "title": string (Short skill name, max 3-4 words),
+  "description": string (1-2 sentences explaining what this node grants),
+  "resources": [
+    {"title": "Understanding X Basics", "type": "article", "url": "https://www.google.com/search?q=understanding+x+basics"},
+    {"title": "X Crash Course", "type": "video", "url": "https://www.youtube.com/results?search_query=x+crash+course"},
+    {"title": "Practice X Exercises", "type": "exercise", "url": "https://www.google.com/search?q=x+practice+exercises"}
+  ]
 }
+
+Resource types MUST be one of: "article", "video", "exercise".
+Every resource MUST have a valid "url" field.
 
 Topic: %s
 `
@@ -86,10 +104,17 @@ func GenerateConstellation(db *gorm.DB, userID uint, topic string) (*models.Cons
 
 		// For MVP, we insert nodes sequentially. Assumes the LLM returns parent nodes before children.
 		for _, llmNode := range nodes {
+			// Convert LLM resources to model resources
+			var resources models.ResourceList
+			for _, r := range llmNode.Resources {
+				resources = append(resources, models.Resource{Title: r.Title, Type: r.Type, URL: r.URL})
+			}
+
 			node := models.StarNode{
 				ConstellationID: constellation.ID,
 				Title:           llmNode.Title,
 				Description:     llmNode.Description,
+				Resources:       resources,
 				IsUnlocked:      false,
 			}
 
@@ -183,8 +208,21 @@ func callGeminiLLM(topic string) ([]LLMNodeResponse, error) {
 
 	jsonText := geminiResp.Candidates[0].Content.Parts[0].Text
 
+	// JSON Sanitization: Strip markdown code fences if LLM wraps output
+	jsonText = strings.TrimSpace(jsonText)
+	if strings.HasPrefix(jsonText, "```json") {
+		jsonText = strings.TrimPrefix(jsonText, "```json")
+	} else if strings.HasPrefix(jsonText, "```") {
+		jsonText = strings.TrimPrefix(jsonText, "```")
+	}
+	if strings.HasSuffix(jsonText, "```") {
+		jsonText = strings.TrimSuffix(jsonText, "```")
+	}
+	jsonText = strings.TrimSpace(jsonText)
+
 	var parseNodes []LLMNodeResponse
 	if err := json.Unmarshal([]byte(jsonText), &parseNodes); err != nil {
+		log.Printf("[AI] Raw JSON text from LLM: %s", jsonText)
 		return nil, fmt.Errorf("failed to parse array from LLM structured JSON: %w", err)
 	}
 

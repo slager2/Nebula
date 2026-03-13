@@ -4,13 +4,13 @@ import useStore from './store/useStore';
 
 const dummyData = {
   nodes: [
-    { id: '1', name: 'Cosmic Awareness', desc: 'The foundation of the universe.', unlocked: true, cost: 1 },
-    { id: '2', name: 'Astral Projection', desc: 'Leave your physical form behind.', unlocked: true, cost: 1 },
-    { id: '3', name: 'Quantum Tunneling', desc: 'Move through solid matter.', unlocked: false, cost: 1 },
-    { id: '4', name: 'Void Singularity', desc: 'Generate a miniature black hole.', unlocked: false, cost: 2 },
-    { id: '5', name: 'Stellar Burst', desc: 'Release energy of a dying star.', unlocked: false, cost: 1 },
-    { id: '6', name: 'Nebula Weave', desc: 'Control cosmic dust.', unlocked: true, cost: 1 },
-    { id: '7', name: 'Supernova', desc: 'Ultimate explosive power.', unlocked: false, cost: 3 },
+    { id: '1', name: 'Cosmic Awareness', desc: 'The foundation of the universe.', unlocked: true, cost: 1, resources: [{title: 'Intro to Cosmic Theory', type: 'article', url: 'https://www.google.com/search?q=cosmic+awareness+theory'}, {title: 'Cosmic Basics Video', type: 'video', url: 'https://www.youtube.com/results?search_query=cosmic+awareness+basics'}] },
+    { id: '2', name: 'Astral Projection', desc: 'Leave your physical form behind.', unlocked: true, cost: 1, resources: [{title: 'Astral Guide', type: 'article', url: 'https://www.google.com/search?q=astral+projection+guide'}] },
+    { id: '3', name: 'Quantum Tunneling', desc: 'Move through solid matter.', unlocked: false, cost: 1, resources: [{title: 'Quantum Mechanics 101', type: 'article', url: 'https://www.google.com/search?q=quantum+tunneling+tutorial'}, {title: 'Tunneling Lab', type: 'exercise', url: 'https://www.google.com/search?q=quantum+tunneling+exercises'}] },
+    { id: '4', name: 'Void Singularity', desc: 'Generate a miniature black hole.', unlocked: false, cost: 2, resources: [{title: 'Black Hole Physics', type: 'video', url: 'https://www.youtube.com/results?search_query=black+hole+physics'}, {title: 'Singularity Math', type: 'article', url: 'https://www.google.com/search?q=singularity+mathematics'}] },
+    { id: '5', name: 'Stellar Burst', desc: 'Release energy of a dying star.', unlocked: false, cost: 1, resources: [{title: 'Stellar Evolution', type: 'article', url: 'https://www.google.com/search?q=stellar+evolution+guide'}] },
+    { id: '6', name: 'Nebula Weave', desc: 'Control cosmic dust.', unlocked: true, cost: 1, resources: [{title: 'Dust Manipulation', type: 'exercise', url: 'https://www.google.com/search?q=cosmic+dust+manipulation'}] },
+    { id: '7', name: 'Supernova', desc: 'Ultimate explosive power.', unlocked: false, cost: 3, resources: [{title: 'Advanced Astrophysics', type: 'video', url: 'https://www.youtube.com/results?search_query=supernova+astrophysics'}, {title: 'Supernova Simulation', type: 'exercise', url: 'https://www.google.com/search?q=supernova+simulation+exercise'}] },
   ],
   links: [
     { source: '1', target: '2' },
