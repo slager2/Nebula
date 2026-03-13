@@ -120,8 +120,16 @@ export default function CosmicTree({ constellationId, onNodeClick }) {
         
         // Link Styling (Glowing neural pathways)
         linkColor={() => 'rgba(0, 255, 255, 0.4)'}
-        linkWidth={1.5}
-        linkDirectionalParticles={2}
+        linkWidth={(link) => {
+          const sourceUnlocked = link.source.unlocked || graphData.nodes.find(n => n.id === link.source)?.unlocked;
+          const targetUnlocked = link.target.unlocked || graphData.nodes.find(n => n.id === link.target)?.unlocked;
+          return (sourceUnlocked && targetUnlocked) ? 2.5 : 1.5;
+        }}
+        linkDirectionalParticles={(link) => {
+          const sourceUnlocked = link.source.unlocked || graphData.nodes.find(n => n.id === link.source)?.unlocked;
+          const targetUnlocked = link.target.unlocked || graphData.nodes.find(n => n.id === link.target)?.unlocked;
+          return (sourceUnlocked && targetUnlocked) ? 2 : 0;
+        }}
         linkDirectionalParticleSpeed={0.005}
         
         // Custom Glowing 4-Point Star Nodes

@@ -34,8 +34,12 @@ func main() {
 
 	api := app.Group("/api/v1")
 
-	// Global state
-	api.Get("/user", handlers.GetUser)
+	// Profile endpoints
+	api.Get("/profile", handlers.GetProfile)
+	api.Put("/profile/physics", handlers.UpdatePhysics)
+
+	// Universe
+	api.Get("/universe", handlers.GetUniverse)
 
 	// AI Generative Tree endpoints
 	api.Post("/constellations/generate", handlers.GenerateConstellation)

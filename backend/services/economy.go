@@ -16,42 +16,53 @@ func CompleteDaily(db *gorm.DB, taskID uint) (*models.User, error) {
 
 	// Wrapping in a transaction to prevent race conditions
 	err := db.Transaction(func(tx *gorm.DB) error {
-		// Use FOR UPDATE lock to prevent concurrent modifications
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&task, taskID).Error; err != nil {
+		// Fetch task
+		if err := tx.First(&task, taskID).Error; err != nil {
 			return err
 		}
 
 		if task.IsCompleted {
-			return errors.New("task already completed today")
+			return errors.New("task already completed")
 		}
 
+		// Use FOR UPDATE lock to prevent concurrent modifications on User
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&user, task.UserID).Error; err != nil {
 			return err
 		}
 
 		// State updates
-		user.EXP += task.ExpReward
+		task.IsCompleted = true
+		now := time.Now()
+		task.LastDoneAt = &now
 
-		// Level up logic: Level * 100 EXP needed for the next level
+		user.EXP += task.BaseEXP
+		
+		switch task.Type {
+		case "INT":
+			user.StatINT++
+		case "STR":
+			user.StatSTR++
+		case "AGI":
+			user.StatAGI++
+		}
+
+		// Level up logic
 		for {
 			requiredExp := 100 * user.Level
 			if user.EXP >= requiredExp {
 				user.EXP -= requiredExp
 				user.Level++
-				user.SkillPoints++
+				user.SkillPoints += 3
+				user.HP = 100
 			} else {
 				break
 			}
 		}
 
-		now := time.Now()
-		task.IsCompleted = true
-		task.LastDoneAt = &now
-
-		if err := tx.Save(&user).Error; err != nil {
+		if err := tx.Save(&task).Error; err != nil {
 			return err
 		}
-		if err := tx.Save(&task).Error; err != nil {
+		if err := tx.Save(&user).Error; err != nil {
 			return err
 		}
 

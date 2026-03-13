@@ -116,19 +116,65 @@ func UnlockStar(c *fiber.Ctx) error {
 	})
 }
 
-// GetUser creates a fallback user for MVP testing and returns User state
-func GetUser(c *fiber.Ctx) error {
+// GetProfile creates a fallback user for MVP testing and returns User state
+func GetProfile(c *fiber.Ctx) error {
 	userID := 1
 	var user models.User
 	if err := database.DB.First(&user, userID).Error; err != nil {
 		// Auto-creation of user on first call
-		user = models.User{ID: uint(userID), Username: "INTP_Builder", Level: 1, EXP: 0, SkillPoints: 5}
+		user = models.User{ID: uint(userID), Username: "INTP_Builder", Level: 1, EXP: 0, SkillPoints: 5, HP: 100}
 		database.DB.Create(&user)
 		
 		// Create a sample Daily Task to be completable
-		dailyTask := models.DailyTask{UserID: uint(userID), Title: "Commit Code Tracker", ExpReward: 100}
+		dailyTask := models.DailyTask{UserID: uint(userID), Title: "Commit Code Tracker", Type: "INT", BaseEXP: 100}
 		database.DB.Create(&dailyTask)
 	}
 
 	return c.JSON(user)
+}
+
+// UpdatePhysics updates the user's Height and Weight
+func UpdatePhysics(c *fiber.Ctx) error {
+	userID := 1
+	var user models.User
+	if err := database.DB.First(&user, userID).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "User not found"})
+	}
+
+	type PhysicsRequest struct {
+		Height float32 `json:"height"`
+		Weight float32 `json:"weight"`
+	}
+
+	var req PhysicsRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid payload"})
+	}
+
+	user.Height = req.Height
+	user.Weight = req.Weight
+
+	if err := database.DB.Save(&user).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to update user"})
+	}
+
+	return c.JSON(user)
+}
+
+// GetUniverse checks user level and returns universe data
+func GetUniverse(c *fiber.Ctx) error {
+	userID := 1
+	var user models.User
+	if err := database.DB.First(&user, userID).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "User not found"})
+	}
+
+	if user.Level < 5 {
+		return c.Status(403).JSON(fiber.Map{"error": "Universe access locked. Required Level: 5"})
+	}
+
+	return c.JSON(fiber.Map{
+		"message": "Welcome to the Universe",
+		"data":    "dummy constellation data",
+	})
 }
