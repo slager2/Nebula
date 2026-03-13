@@ -3,6 +3,7 @@ package database
 import (
 	"log"
 	"os"
+	"time"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -17,11 +18,24 @@ func Connect() {
 	if dsn == "" {
 		dsn = "host=localhost user=postgres password=postgres dbname=nebula port=5432 sslmode=disable TimeZone=UTC"
 	}
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info),
-	})
+
+	var db *gorm.DB
+	var err error
+
+	// Retry connection loop
+	for i := 0; i < 10; i++ {
+		db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
+			Logger: logger.Default.LogMode(logger.Info),
+		})
+		if err == nil {
+			break
+		}
+		log.Printf("Failed to connect to database (attempt %d/10). Retrying in 2 seconds...\n", i+1)
+		time.Sleep(2 * time.Second)
+	}
+
 	if err != nil {
-		log.Fatal("Failed to connect to database. \n", err)
+		log.Fatal("Failed to connect to database after multiple attempts. \n", err)
 	}
 
 	log.Println("Connected to Database")
