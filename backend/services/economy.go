@@ -73,7 +73,7 @@ func CompleteDaily(db *gorm.DB, taskID uint) (*models.User, error) {
 }
 
 // UnlockStar spends skill points to unlock a node in the tree.
-func UnlockStar(db *gorm.DB, nodeID uint, userID uint) (*models.StarNode, *models.User, int, error) {
+func UnlockStar(db *gorm.DB, nodeID uint, userID uint, knowledgeShard string) (*models.StarNode, *models.User, int, error) {
 	var user models.User
 	var node models.StarNode
 	var statusCode int
@@ -129,6 +129,7 @@ func UnlockStar(db *gorm.DB, nodeID uint, userID uint) (*models.StarNode, *model
 		// Mutation
 		user.SkillPoints -= node.Cost
 		node.IsUnlocked = true
+		node.KnowledgeShard = knowledgeShard
 
 		if err := tx.Save(&user).Error; err != nil {
 			statusCode = 500

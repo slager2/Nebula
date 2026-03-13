@@ -16,18 +16,18 @@ import (
 	"nebula-backend/models"
 )
 
-type LLMResource struct {
-	Title string `json:"title"`
-	Type  string `json:"type"`
-	URL   string `json:"url"`
+type LLMAIPayload struct {
+	Overview      string   `json:"overview"`
+	KeyConcepts   []string `json:"key_concepts"`
+	PracticalTask string   `json:"practical_task"`
 }
 
 type LLMNodeResponse struct {
-	ID          uint          `json:"id"`
-	ParentID    *uint         `json:"parent_id"`
-	Title       string        `json:"title"`
-	Description string        `json:"description"`
-	Resources   []LLMResource `json:"resources"`
+	ID          uint         `json:"id"`
+	ParentID    *uint        `json:"parent_id"`
+	Title       string       `json:"title"`
+	Description string       `json:"description"`
+	Codex       LLMAIPayload `json:"codex"`
 }
 
 var promptTemplate = `
@@ -39,10 +39,9 @@ Rules:
 1. The tree MUST have exactly 1 root node (level 1 knowledge).
 2. The tree must branch out logically into specialized sub-skills (total 10-15 nodes).
 3. Progression must make sense (e.g., you cannot unlock "Concurrency" before "Syntax").
-4. Each node MUST include a "resources" array with 2-4 study resources.
-5. For the "url" field, generate a highly probable Google Search URL or YouTube Search URL for the topic (e.g., "https://www.youtube.com/results?search_query=golang+channels" or "https://www.google.com/search?q=rust+borrow+checker+tutorial").
-6. Tone: Technical, concise, gamified.
-7. Return ONLY a valid JSON array. NO markdown, NO code fences, NO extra text.
+4. Each node MUST include a "codex" object with AI-generated study content.
+5. Tone: Technical, concise, gamified.
+6. Return ONLY a valid JSON array. NO markdown, NO code fences, NO extra text.
 
 JSON Schema for EACH object in the array:
 {
@@ -50,25 +49,42 @@ JSON Schema for EACH object in the array:
   "parent_id": integer or null (null ONLY for root node),
   "title": string (Short skill name, max 3-4 words),
   "description": string (1-2 sentences explaining what this node grants),
-  "resources": [
-    {"title": "Understanding X Basics", "type": "article", "url": "https://www.google.com/search?q=understanding+x+basics"},
-    {"title": "X Crash Course", "type": "video", "url": "https://www.youtube.com/results?search_query=x+crash+course"},
-    {"title": "Practice X Exercises", "type": "exercise", "url": "https://www.google.com/search?q=x+practice+exercises"}
-  ]
+  "codex": {
+    "overview": "TL;DR explanation of the concept (2-3 sentences max)",
+    "key_concepts": ["Concept 1", "Concept 2", "Concept 3"],
+    "practical_task": "One specific, actionable micro-task to test understanding"
+  }
 }
 
-Resource types MUST be one of: "article", "video", "exercise".
-Every resource MUST have a valid "url" field.
+The "codex.overview" should be a clear, beginner-friendly explanation.
+The "codex.key_concepts" should list 3-5 core ideas as short strings.
+The "codex.practical_task" should be one concrete mini-challenge.
 
 Topic: %s
 `
+
+// sanitizeJSON strips markdown code fences and whitespace from LLM output.
+func sanitizeJSON(raw string) string {
+	s := strings.TrimSpace(raw)
+	// Strip ```json or ``` prefix
+	if strings.HasPrefix(s, "```json") {
+		s = strings.TrimPrefix(s, "```json")
+	} else if strings.HasPrefix(s, "```") {
+		s = strings.TrimPrefix(s, "```")
+	}
+	// Strip ``` suffix
+	if strings.HasSuffix(s, "```") {
+		s = strings.TrimSuffix(s, "```")
+	}
+	return strings.TrimSpace(s)
+}
 
 // GenerateConstellation triggers the LLM pipeline, formats the response into nodes, and safely commits to DB
 func GenerateConstellation(db *gorm.DB, userID uint, topic string) (*models.Constellation, []models.StarNode, error) {
 	var nodes []LLMNodeResponse
 	var err error
 
-	// Retry logic (up to 3 attempts) for Fallback & Validation
+	// Retry logic (up to 3 attempts)
 	for attempt := 1; attempt <= 3; attempt++ {
 		nodes, err = callGeminiLLM(topic)
 		if err == nil {
@@ -84,7 +100,7 @@ func GenerateConstellation(db *gorm.DB, userID uint, topic string) (*models.Cons
 		return nil, nil, fmt.Errorf("AI Generation failed after 3 attempts: %w", err)
 	}
 
-	// 2. Wrap DB insertion in transaction
+	// Wrap DB insertion in transaction
 	var constellation models.Constellation
 	var builtNodes []models.StarNode
 
@@ -99,33 +115,26 @@ func GenerateConstellation(db *gorm.DB, userID uint, topic string) (*models.Cons
 			return err
 		}
 
-		// Map to keep track of LLM ID -> Gorm DB ID for Graph linking
 		idMap := make(map[uint]uint)
 
-		// For MVP, we insert nodes sequentially. Assumes the LLM returns parent nodes before children.
 		for _, llmNode := range nodes {
-			// Convert LLM resources to model resources
-			var resources models.ResourceList
-			for _, r := range llmNode.Resources {
-				resources = append(resources, models.Resource{Title: r.Title, Type: r.Type, URL: r.URL})
-			}
-
 			node := models.StarNode{
 				ConstellationID: constellation.ID,
 				Title:           llmNode.Title,
 				Description:     llmNode.Description,
-				Resources:       resources,
-				IsUnlocked:      false,
+				Codex: models.AIPayload{
+					Overview:      llmNode.Codex.Overview,
+					KeyConcepts:   llmNode.Codex.KeyConcepts,
+					PracticalTask: llmNode.Codex.PracticalTask,
+				},
+				IsUnlocked: false,
 			}
 
 			if llmNode.ParentID != nil {
-				// Translate the LLM-generated sequential "ParentID" to the actual PostgreSQL generated Primary Key
 				if actualParentID, exists := idMap[*llmNode.ParentID]; exists {
 					node.ParentNodeID = &actualParentID
 				} else {
 					log.Println("Warning: parent ID not found in map", *llmNode.ParentID, "for node", llmNode.Title)
-					// If the LLM places a child before parent, edge creation drops. 
-					// A real fix would be 2-pass topological sort parsing, but sequential is fine for most LLM outputs.
 				}
 			}
 
@@ -208,17 +217,8 @@ func callGeminiLLM(topic string) ([]LLMNodeResponse, error) {
 
 	jsonText := geminiResp.Candidates[0].Content.Parts[0].Text
 
-	// JSON Sanitization: Strip markdown code fences if LLM wraps output
-	jsonText = strings.TrimSpace(jsonText)
-	if strings.HasPrefix(jsonText, "```json") {
-		jsonText = strings.TrimPrefix(jsonText, "```json")
-	} else if strings.HasPrefix(jsonText, "```") {
-		jsonText = strings.TrimPrefix(jsonText, "```")
-	}
-	if strings.HasSuffix(jsonText, "```") {
-		jsonText = strings.TrimSuffix(jsonText, "```")
-	}
-	jsonText = strings.TrimSpace(jsonText)
+	// Robust sanitization — strip markdown fences
+	jsonText = sanitizeJSON(jsonText)
 
 	var parseNodes []LLMNodeResponse
 	if err := json.Unmarshal([]byte(jsonText), &parseNodes); err != nil {

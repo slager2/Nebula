@@ -2,39 +2,39 @@ import { useState } from 'react';
 import useStore from '../store/useStore';
 import CosmicTree from '../CosmicTree';
 
-const RESOURCE_ICONS = {
-  article: '📄',
-  video: '🎬',
-  exercise: '🏋️',
-};
-
 function NodeInspector({ node, user, onClose }) {
   const unlockNode = useStore((s) => s.unlockNode);
   const setActiveNode = useStore((s) => s.setActiveNode);
   const [unlocking, setUnlocking] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
+  const [knowledgeShard, setKnowledgeShard] = useState('');
 
   const cost = node.cost || 1;
-  const resources = node.resources || [];
+  const codex = node.codex || {};
+  const keyConcepts = codex.key_concepts || [];
   const canAfford = user && user.SkillPoints >= cost;
+  const isMasteryReady = canAfford && knowledgeShard.trim().length >= 50;
 
   const handleCommit = async () => {
-    if (!canAfford || node.unlocked) return;
+    if (!isMasteryReady || node.unlocked) return;
     setErrorMsg(null);
     setUnlocking(true);
-    const result = await unlockNode(node.id);
+    const result = await unlockNode(node.id, knowledgeShard.trim());
     setUnlocking(false);
     if (result.ok) {
+      setKnowledgeShard('');
       setActiveNode(null);
     } else {
       setErrorMsg(result.data?.error || 'Failed to commit mastery.');
     }
   };
 
+  const charCount = knowledgeShard.trim().length;
+
   return (
-    <div className="w-80 bg-black/60 backdrop-blur-xl border-l border-white/5 flex flex-col shrink-0 relative overflow-hidden">
-      {/* Neon edge */}
-      <div className="absolute left-0 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-cyan-500/30 to-transparent" />
+    <div className="w-96 bg-black/70 backdrop-blur-xl border-l border-cyan-500/10 flex flex-col shrink-0 relative overflow-hidden">
+      {/* Neon edge glow */}
+      <div className="absolute left-0 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-cyan-500/40 to-transparent" />
 
       {/* Close */}
       <button
@@ -64,41 +64,93 @@ function NodeInspector({ node, user, onClose }) {
         <p className="text-xs text-slate-400 mt-1 leading-relaxed">{node.desc || 'Study this node to progress.'}</p>
       </div>
 
-      {/* Resources — scrollable */}
-      <div className="flex-1 overflow-y-auto p-5 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
-        <h4 className="text-[10px] font-bold tracking-[0.2em] text-slate-500 uppercase mb-3">Study Resources</h4>
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-y-auto p-5 space-y-4 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
 
-        {resources.length === 0 ? (
-          <p className="text-xs text-slate-600 italic">No resources available for this node.</p>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {resources.map((res, i) => (
-              <a
-                key={i}
-                href={res.url || '#'}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group p-3 rounded-lg bg-white/[0.03] border border-white/5 hover:border-cyan-500/20 hover:bg-cyan-500/5 transition-all duration-200 cursor-pointer no-underline block"
-              >
-                <div className="flex items-start gap-2.5">
-                  <span className="text-base shrink-0 mt-0.5">
-                    {RESOURCE_ICONS[res.type] || '📎'}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-slate-300 group-hover:text-white transition-colors font-medium truncate">
-                      {res.title}
-                    </p>
-                    <p className="text-[10px] text-slate-600 uppercase tracking-wider mt-0.5 font-mono">
-                      {res.type}
-                    </p>
-                  </div>
-                  {/* External link icon */}
-                  <svg className="w-3.5 h-3.5 text-slate-600 group-hover:text-cyan-400 transition-colors shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-                  </svg>
-                </div>
-              </a>
-            ))}
+        {/* CODEX: Overview */}
+        {codex.overview && (
+          <div className="p-3.5 rounded-lg border border-cyan-500/10 bg-cyan-500/[0.03]">
+            <h4 className="text-[10px] font-bold tracking-[0.2em] text-cyan-500/60 uppercase mb-2">Overview</h4>
+            <p className="text-sm text-slate-300 leading-relaxed" style={{ textShadow: '0 0 8px rgba(6,182,212,0.1)' }}>
+              {codex.overview}
+            </p>
+          </div>
+        )}
+
+        {/* CODEX: Key Concepts */}
+        {keyConcepts.length > 0 && (
+          <div>
+            <h4 className="text-[10px] font-bold tracking-[0.2em] text-cyan-500/60 uppercase mb-2">Key Concepts</h4>
+            <div className="flex flex-wrap gap-1.5">
+              {keyConcepts.map((concept, i) => (
+                <span
+                  key={i}
+                  className="px-2.5 py-1 rounded-full text-[11px] font-bold border"
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(6,182,212,0.08), rgba(139,92,246,0.08))',
+                    borderColor: 'rgba(6,182,212,0.2)',
+                    color: '#67e8f9',
+                    textShadow: '0 0 6px rgba(6,182,212,0.3)',
+                  }}
+                >
+                  {concept}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* CODEX: Practical Task */}
+        {codex.practical_task && (
+          <div className="p-3.5 rounded-lg border border-amber-500/20 bg-amber-500/[0.04]">
+            <h4 className="text-[10px] font-bold tracking-[0.2em] text-amber-400/70 uppercase mb-2">⚡ Practical Task</h4>
+            <p className="text-sm text-amber-200/80 leading-relaxed font-medium">
+              {codex.practical_task}
+            </p>
+          </div>
+        )}
+
+        {/* Knowledge Shard Input — only for locked nodes */}
+        {!node.unlocked && (
+          <div>
+            <h4 className="text-[10px] font-bold tracking-[0.2em] text-slate-500 uppercase mb-2">Knowledge Shard</h4>
+            <textarea
+              value={knowledgeShard}
+              onChange={(e) => setKnowledgeShard(e.target.value)}
+              placeholder="Upload your knowledge shard to the Nebula matrix... (Min 50 chars)"
+              rows={4}
+              className="w-full p-3 rounded-lg text-sm leading-relaxed resize-none focus:outline-none transition-all"
+              style={{
+                background: '#0a0a0f',
+                border: '1px solid rgba(34,197,94,0.15)',
+                color: '#4ade80',
+                fontFamily: '"JetBrains Mono", "Fira Code", monospace',
+                fontSize: '12px',
+                caretColor: '#4ade80',
+                boxShadow: knowledgeShard.length > 0 ? '0 0 12px rgba(34,197,94,0.05)' : 'none',
+              }}
+            />
+            <div className="flex items-center justify-between mt-1.5">
+              <span className={`text-[10px] font-mono ${charCount >= 50 ? 'text-emerald-400' : 'text-slate-600'}`}>
+                {charCount}/50 chars
+              </span>
+              {charCount > 0 && charCount < 50 && (
+                <span className="text-[10px] text-red-400/70 font-mono">
+                  {50 - charCount} more needed
+                </span>
+              )}
+              {charCount >= 50 && (
+                <span className="text-[10px] text-emerald-400 font-mono">✓ Ready</span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Previously written shard — for unlocked nodes */}
+        {node.unlocked && node.knowledge_shard && (
+          <div className="p-3 rounded-lg bg-emerald-500/[0.04] border border-emerald-500/15">
+            <h4 className="text-[10px] font-bold tracking-[0.2em] text-emerald-500/60 uppercase mb-2">Your Knowledge Shard</h4>
+            <p className="text-xs text-emerald-300/70 font-mono leading-relaxed">{node.knowledge_shard}</p>
           </div>
         )}
       </div>
@@ -107,8 +159,16 @@ function NodeInspector({ node, user, onClose }) {
       <div className="p-5 pt-3 border-t border-white/5 shrink-0">
         {/* Error Message */}
         {errorMsg && (
-          <div className="mb-3 p-2.5 rounded-lg bg-red-500/10 border border-red-500/30 text-xs text-red-400 font-mono">
-            ⚠ {errorMsg}
+          <div
+            className="mb-3 p-2.5 rounded-lg text-xs font-mono"
+            style={{
+              background: 'rgba(239,68,68,0.08)',
+              border: '1px solid rgba(239,68,68,0.3)',
+              color: '#f87171',
+              animation: 'pulse 2s ease-in-out infinite',
+            }}
+          >
+            <span className="mr-1">⚠</span> {errorMsg}
           </div>
         )}
 
@@ -119,15 +179,15 @@ function NodeInspector({ node, user, onClose }) {
         ) : (
           <button
             onClick={handleCommit}
-            disabled={!canAfford || unlocking}
-            className="w-full py-3 rounded-xl text-xs uppercase tracking-[0.15em] font-black transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed"
+            disabled={!isMasteryReady || unlocking}
+            className="w-full py-3 rounded-xl text-xs uppercase tracking-[0.15em] font-black transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed"
             style={{
-              background: canAfford
+              background: isMasteryReady
                 ? 'linear-gradient(135deg, rgba(6,182,212,0.15), rgba(139,92,246,0.15))'
                 : 'rgba(30,41,59,0.5)',
-              border: canAfford ? '1px solid rgba(6,182,212,0.3)' : '1px solid rgba(51,65,85,0.5)',
-              color: canAfford ? '#67e8f9' : '#64748b',
-              boxShadow: canAfford ? '0 0 20px rgba(6,182,212,0.1), inset 0 1px 0 rgba(255,255,255,0.05)' : 'none',
+              border: isMasteryReady ? '1px solid rgba(6,182,212,0.3)' : '1px solid rgba(51,65,85,0.3)',
+              color: isMasteryReady ? '#67e8f9' : '#475569',
+              boxShadow: isMasteryReady ? '0 0 25px rgba(6,182,212,0.12), inset 0 1px 0 rgba(255,255,255,0.05)' : 'none',
             }}
           >
             {unlocking ? (
@@ -186,7 +246,7 @@ export default function Forge() {
   };
 
   return (
-    <div className="h-full flex overflow-hidden">
+    <div className="h-screen flex overflow-hidden">
       {/* Graph Area */}
       <div className="flex-1 relative overflow-hidden">
         {constellationId ? (
@@ -228,7 +288,7 @@ export default function Forge() {
 
           {/* Generation Error */}
           {genError && (
-            <div className="mb-4 p-2.5 rounded-lg bg-red-500/10 border border-red-500/30 text-xs text-red-400 font-mono">
+            <div className="mb-4 p-2.5 rounded-lg text-xs font-mono" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171' }}>
               ⚠ {genError}
             </div>
           )}
@@ -243,7 +303,7 @@ export default function Forge() {
 
           <div className="flex-1 flex items-center justify-center">
             <p className="text-[11px] text-slate-600 text-center leading-relaxed">
-              Click a node on the graph<br />to inspect its resources
+              Click a node on the graph<br />to open its Codex
             </p>
           </div>
         </div>

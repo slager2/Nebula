@@ -101,16 +101,22 @@ const useStore = create((set, get) => ({
   activeNode: null,
   setActiveNode: (node) => set({ activeNode: node }),
 
-  unlockNode: async (nodeId) => {
+  unlockNode: async (nodeId, knowledgeShard) => {
     try {
-      const res = await fetch(`${API}/nodes/${nodeId}/unlock`, { method: 'POST' });
+      const res = await fetch(`${API}/nodes/${nodeId}/unlock`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ knowledge_shard: knowledgeShard }),
+      });
       const data = await res.json();
       if (res.ok) {
         set({ user: data.user });
         const gd = get().graphData;
         if (gd) {
           const updatedNodes = gd.nodes.map((n) =>
-            n.id === String(nodeId) || n.id === nodeId ? { ...n, unlocked: true } : n
+            n.id === String(nodeId) || n.id === nodeId
+              ? { ...n, unlocked: true, knowledge_shard: knowledgeShard }
+              : n
           );
           set({ graphData: { ...gd, nodes: updatedNodes } });
         }

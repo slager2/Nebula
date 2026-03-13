@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"nebula-backend/database"
@@ -19,7 +20,6 @@ func GenerateConstellation(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid request payload"})
 	}
 
-	// Assuming User ID 1 for MVP
 	userID := uint(1)
 
 	constellation, nodes, err := services.GenerateConstellation(database.DB, userID, req.Topic)
@@ -46,19 +46,20 @@ func GetConstellation(c *fiber.Ctx) error {
 	var nodes []models.StarNode
 	database.DB.Where("constellation_id = ?", id).Find(&nodes)
 
-	type ResourceDTO struct {
-		Title string `json:"title"`
-		Type  string `json:"type"`
-		URL   string `json:"url"`
+	type CodexDTO struct {
+		Overview      string   `json:"overview"`
+		KeyConcepts   []string `json:"key_concepts"`
+		PracticalTask string   `json:"practical_task"`
 	}
 
 	type NodeDTO struct {
-		ID        string        `json:"id"`
-		Name      string        `json:"name"`
-		Desc      string        `json:"desc"`
-		Unlocked  bool          `json:"unlocked"`
-		Cost      int           `json:"cost"`
-		Resources []ResourceDTO `json:"resources"`
+		ID             string   `json:"id"`
+		Name           string   `json:"name"`
+		Desc           string   `json:"desc"`
+		Unlocked       bool     `json:"unlocked"`
+		Cost           int      `json:"cost"`
+		Codex          CodexDTO `json:"codex"`
+		KnowledgeShard string   `json:"knowledge_shard"`
 	}
 
 	type LinkDTO struct {
@@ -70,18 +71,18 @@ func GetConstellation(c *fiber.Ctx) error {
 	var resLinks []LinkDTO
 
 	for _, n := range nodes {
-		var resources []ResourceDTO
-		for _, r := range n.Resources {
-			resources = append(resources, ResourceDTO{Title: r.Title, Type: r.Type, URL: r.URL})
-		}
-
 		resNodes = append(resNodes, NodeDTO{
-			ID:        strconv.Itoa(int(n.ID)),
-			Name:      n.Title,
-			Desc:      n.Description,
-			Unlocked:  n.IsUnlocked,
-			Cost:      n.Cost,
-			Resources: resources,
+			ID:       strconv.Itoa(int(n.ID)),
+			Name:     n.Title,
+			Desc:     n.Description,
+			Unlocked: n.IsUnlocked,
+			Cost:     n.Cost,
+			Codex: CodexDTO{
+				Overview:      n.Codex.Overview,
+				KeyConcepts:   n.Codex.KeyConcepts,
+				PracticalTask: n.Codex.PracticalTask,
+			},
+			KnowledgeShard: n.KnowledgeShard,
 		})
 
 		if n.ParentNodeID != nil {
@@ -92,7 +93,6 @@ func GetConstellation(c *fiber.Ctx) error {
 		}
 	}
 
-	// Returning exact shape expected by react-force-graph
 	return c.JSON(fiber.Map{
 		"nodes": resNodes,
 		"links": resLinks,
@@ -115,14 +115,28 @@ func CompleteDaily(c *fiber.Ctx) error {
 	})
 }
 
-// UnlockStar handler
+// UnlockStar handler — requires knowledge_shard (min 50 chars)
 func UnlockStar(c *fiber.Ctx) error {
 	idParam := c.Params("id")
 	id, _ := strconv.Atoi(idParam)
 
 	userID := uint(1) // hardcoded for MVP
 
-	node, user, statusCode, err := services.UnlockStar(database.DB, uint(id), userID)
+	type UnlockRequest struct {
+		KnowledgeShard string `json:"knowledge_shard"`
+	}
+
+	var req UnlockRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid request payload"})
+	}
+
+	shard := strings.TrimSpace(req.KnowledgeShard)
+	if len(shard) < 50 {
+		return c.Status(400).JSON(fiber.Map{"error": "Knowledge shard must be at least 50 characters. Prove your understanding."})
+	}
+
+	node, user, statusCode, err := services.UnlockStar(database.DB, uint(id), userID, shard)
 	if err != nil {
 		if statusCode == 0 {
 			statusCode = 400
@@ -142,11 +156,9 @@ func GetProfile(c *fiber.Ctx) error {
 	userID := 1
 	var user models.User
 	if err := database.DB.First(&user, userID).Error; err != nil {
-		// Auto-creation of user on first call
 		user = models.User{ID: uint(userID), Username: "INTP_Builder", Level: 1, EXP: 0, SkillPoints: 5, HP: 100}
 		database.DB.Create(&user)
-		
-		// Create a sample Daily Task to be completable
+
 		dailyTask := models.DailyTask{UserID: uint(userID), Title: "Commit Code Tracker", Type: "INT", BaseEXP: 100}
 		database.DB.Create(&dailyTask)
 	}
@@ -262,4 +274,3 @@ func DeleteDaily(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{"message": "Task deleted"})
 }
-
