@@ -10,6 +10,7 @@ type User struct {
 	Level       int    `gorm:"default:1"`
 	EXP         int    `gorm:"default:0"`
 	SkillPoints int    `gorm:"default:0"`
+	HP          int    `gorm:"default:100"`
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }

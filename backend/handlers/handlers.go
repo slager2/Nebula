@@ -46,9 +46,39 @@ func GetConstellation(c *fiber.Ctx) error {
 	var nodes []models.StarNode
 	database.DB.Where("constellation_id = ?", id).Find(&nodes)
 
+	type NodeDTO struct {
+		ID       string `json:"id"`
+		Name     string `json:"name"`
+		Unlocked bool   `json:"unlocked"`
+	}
+
+	type LinkDTO struct {
+		Source string `json:"source"`
+		Target string `json:"target"`
+	}
+
+	var resNodes []NodeDTO
+	var resLinks []LinkDTO
+
+	for _, n := range nodes {
+		resNodes = append(resNodes, NodeDTO{
+			ID:       strconv.Itoa(int(n.ID)),
+			Name:     n.Title,
+			Unlocked: n.IsUnlocked,
+		})
+
+		if n.ParentNodeID != nil {
+			resLinks = append(resLinks, LinkDTO{
+				Source: strconv.Itoa(int(*n.ParentNodeID)),
+				Target: strconv.Itoa(int(n.ID)),
+			})
+		}
+	}
+
+	// Returning exact shape expected by react-force-graph
 	return c.JSON(fiber.Map{
-		"constellation": constellation,
-		"nodes":         nodes,
+		"nodes": resNodes,
+		"links": resLinks,
 	})
 }
 

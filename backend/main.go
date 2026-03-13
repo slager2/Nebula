@@ -10,6 +10,7 @@ import (
 
 	"nebula-backend/database"
 	"nebula-backend/handlers"
+	"nebula-backend/services"
 )
 
 func main() {
@@ -22,6 +23,9 @@ func main() {
 	// Connect to PostgreSQL & Migrate
 	database.Connect()
 
+	// Initialize background jobs
+	services.InitCronJobs(database.DB)
+
 	app := fiber.New(fiber.Config{
 		AppName: "Cosmic Skill Tree MVP",
 	})
@@ -30,7 +34,7 @@ func main() {
 
 	api := app.Group("/api/v1")
 
-	// Global state 
+	// Global state
 	api.Get("/user", handlers.GetUser)
 
 	// AI Generative Tree endpoints

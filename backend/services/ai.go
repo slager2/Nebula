@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"gorm.io/gorm"
 	"nebula-backend/models"
@@ -46,10 +47,23 @@ Topic: %s
 
 // GenerateConstellation triggers the LLM pipeline, formats the response into nodes, and safely commits to DB
 func GenerateConstellation(db *gorm.DB, userID uint, topic string) (*models.Constellation, []models.StarNode, error) {
-	// 1. Call LLM to get unstructured-but-structured JSON array of nodes
-	nodes, err := callGeminiLLM(topic)
+	var nodes []LLMNodeResponse
+	var err error
+
+	// Retry logic (up to 3 attempts) for Fallback & Validation
+	for attempt := 1; attempt <= 3; attempt++ {
+		nodes, err = callGeminiLLM(topic)
+		if err == nil {
+			break
+		}
+		log.Printf("[AI] Attempt %d failed: %v", attempt, err)
+		if attempt < 3 {
+			time.Sleep(2 * time.Second)
+		}
+	}
+
 	if err != nil {
-		return nil, nil, fmt.Errorf("AI Generation failed: %w", err)
+		return nil, nil, fmt.Errorf("AI Generation failed after 3 attempts: %w", err)
 	}
 
 	// 2. Wrap DB insertion in transaction
