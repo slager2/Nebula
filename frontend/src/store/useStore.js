@@ -50,8 +50,12 @@ const useStore = create((set, get) => ({
       const data = await res.json();
       if (res.ok) {
         set({ user: data.user });
+        // Update the task in local state with streak from response
+        const returnedTask = data.task;
         const tasks = get().dailyTasks.map((t) =>
-          t.ID === taskId ? { ...t, IsCompleted: true } : t
+          t.ID === taskId
+            ? { ...t, IsCompleted: true, Streak: returnedTask?.Streak ?? t.Streak + 1 }
+            : t
         );
         set({ dailyTasks: tasks });
       }
@@ -101,32 +105,29 @@ const useStore = create((set, get) => ({
   activeNode: null,
   setActiveNode: (node) => set({ activeNode: node }),
 
-  unlockNode: async (nodeId, knowledgeShard) => {
+  verifyNode: async (nodeId, shard) => {
     try {
-      const res = await fetch(`${API}/nodes/${nodeId}/unlock`, {
+      const res = await fetch(`${API}/nodes/${nodeId}/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ knowledge_shard: knowledgeShard }),
+        body: JSON.stringify({ shard }),
       });
       const data = await res.json();
       if (res.ok) {
         set({ user: data.user });
         const gd = get().graphData;
         if (gd) {
-          // IMPORTANT: Mutate nodes in-place to preserve d3-force x/y/vx/vy positions.
-          // Spreading creates new objects → d3 loses coordinates → nodes fly off.
+          // Mutate in-place to preserve d3-force x/y/vx/vy positions
           let targetNode = null;
           gd.nodes.forEach((n) => {
             if (n.id === String(nodeId) || n.id === nodeId) {
               n.unlocked = true;
-              n.knowledge_shard = knowledgeShard;
+              n.knowledge_shard = shard;
               targetNode = n;
             }
           });
-          // New array references to trigger React re-render without losing d3 state
           set({ graphData: { nodes: [...gd.nodes], links: [...gd.links] } });
 
-          // Sync activeNode so the inspector UI updates immediately
           if (targetNode) {
             set({ activeNode: { ...targetNode } });
           }
@@ -134,7 +135,7 @@ const useStore = create((set, get) => ({
       }
       return { ok: res.ok, data };
     } catch (e) {
-      console.error('Failed to unlock node', e);
+      console.error('Failed to verify node', e);
       return { ok: false };
     }
   },

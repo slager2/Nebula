@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"math"
 	"time"
 
 	"gorm.io/gorm"
@@ -9,12 +10,11 @@ import (
 	"nebula-backend/models"
 )
 
-// CompleteDaily marks a task as done, grants EXP, and handles leveling up securely.
-func CompleteDaily(db *gorm.DB, taskID uint) (*models.User, error) {
+// CompleteDaily marks a task done, increments streak, recalculates RoutineScore & SyncRate.
+func CompleteDaily(db *gorm.DB, taskID uint) (*models.User, *models.DailyTask, error) {
 	var user models.User
 	var task models.DailyTask
 
-	// Wrapping in a transaction to prevent race conditions
 	err := db.Transaction(func(tx *gorm.DB) error {
 		// Fetch task
 		if err := tx.First(&task, taskID).Error; err != nil {
@@ -25,18 +25,18 @@ func CompleteDaily(db *gorm.DB, taskID uint) (*models.User, error) {
 			return errors.New("task already completed")
 		}
 
-		// Use FOR UPDATE lock to prevent concurrent modifications on User
+		// Lock user row
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&user, task.UserID).Error; err != nil {
 			return err
 		}
 
-		// State updates
+		// Mark completed + increment streak
 		task.IsCompleted = true
 		now := time.Now()
 		task.LastDoneAt = &now
+		task.Streak++
 
-		user.EXP += task.BaseEXP
-		
+		// Stat boost based on type
 		switch task.Type {
 		case "INT":
 			user.StatINT++
@@ -46,22 +46,31 @@ func CompleteDaily(db *gorm.DB, taskID uint) (*models.User, error) {
 			user.StatAGI++
 		}
 
-		// Level up logic
-		for {
-			requiredExp := 100 * user.Level
-			if user.EXP >= requiredExp {
-				user.EXP -= requiredExp
-				user.Level++
-				user.SkillPoints += 3
-				user.HP = 100
-			} else {
-				break
-			}
-		}
-
 		if err := tx.Save(&task).Error; err != nil {
 			return err
 		}
+
+		// Recalculate RoutineScore: (completed / total * 100) + streak bonuses, clamped to 100
+		var totalTasks int64
+		var completedTasks int64
+		tx.Model(&models.DailyTask{}).Where("user_id = ?", user.ID).Count(&totalTasks)
+		tx.Model(&models.DailyTask{}).Where("user_id = ? AND is_completed = true", user.ID).Count(&completedTasks)
+
+		var score float64
+		if totalTasks > 0 {
+			score = (float64(completedTasks) / float64(totalTasks)) * 100.0
+		}
+
+		// Streak bonus: sum of all streaks * 0.5, capped contribution
+		var streakSum int64
+		tx.Model(&models.DailyTask{}).Where("user_id = ? AND is_completed = true", user.ID).
+			Select("COALESCE(SUM(streak), 0)").Scan(&streakSum)
+		score += float64(streakSum) * 0.5
+
+		// HARD CLAMP: RoutineScore never exceeds 100
+		user.RoutineScore = math.Min(100.0, score)
+		user.SyncRate = (user.RoutineScore + user.CognitiveScore) / 2.0
+
 		if err := tx.Save(&user).Error; err != nil {
 			return err
 		}
@@ -69,11 +78,11 @@ func CompleteDaily(db *gorm.DB, taskID uint) (*models.User, error) {
 		return nil
 	})
 
-	return &user, err
+	return &user, &task, err
 }
 
-// UnlockStar spends skill points to unlock a node in the tree.
-func UnlockStar(db *gorm.DB, nodeID uint, userID uint, knowledgeShard string) (*models.StarNode, *models.User, int, error) {
+// VerifyNode validates knowledge shard, unlocks node, boosts CognitiveScore.
+func VerifyNode(db *gorm.DB, nodeID uint, userID uint, shard string) (*models.StarNode, *models.User, int, error) {
 	var user models.User
 	var node models.StarNode
 	var statusCode int
@@ -104,13 +113,7 @@ func UnlockStar(db *gorm.DB, nodeID uint, userID uint, knowledgeShard string) (*
 
 		if node.IsUnlocked {
 			statusCode = 400
-			return errors.New("node already unlocked")
-		}
-
-		// Balance check
-		if user.SkillPoints < node.Cost {
-			statusCode = 402
-			return errors.New("not enough skill points")
+			return errors.New("node already verified")
 		}
 
 		// Parent check
@@ -122,14 +125,17 @@ func UnlockStar(db *gorm.DB, nodeID uint, userID uint, knowledgeShard string) (*
 			}
 			if !parent.IsUnlocked {
 				statusCode = 403
-				return errors.New("parent skill must be unlocked first")
+				return errors.New("parent skill must be verified first")
 			}
 		}
 
 		// Mutation
-		user.SkillPoints -= node.Cost
 		node.IsUnlocked = true
-		node.KnowledgeShard = knowledgeShard
+		node.KnowledgeShard = shard
+
+		// Boost CognitiveScore to 100 on successful verification
+		user.CognitiveScore = 100.0
+		user.SyncRate = (user.RoutineScore + user.CognitiveScore) / 2.0
 
 		if err := tx.Save(&user).Error; err != nil {
 			statusCode = 500

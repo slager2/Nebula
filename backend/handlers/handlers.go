@@ -57,7 +57,6 @@ func GetConstellation(c *fiber.Ctx) error {
 		Name           string   `json:"name"`
 		Desc           string   `json:"desc"`
 		Unlocked       bool     `json:"unlocked"`
-		Cost           int      `json:"cost"`
 		Codex          CodexDTO `json:"codex"`
 		KnowledgeShard string   `json:"knowledge_shard"`
 	}
@@ -76,7 +75,6 @@ func GetConstellation(c *fiber.Ctx) error {
 			Name:     n.Title,
 			Desc:     n.Description,
 			Unlocked: n.IsUnlocked,
-			Cost:     n.Cost,
 			Codex: CodexDTO{
 				Overview:      n.Codex.Overview,
 				KeyConcepts:   n.Codex.KeyConcepts,
@@ -104,39 +102,40 @@ func CompleteDaily(c *fiber.Ctx) error {
 	idParam := c.Params("id")
 	id, _ := strconv.Atoi(idParam)
 
-	user, err := services.CompleteDaily(database.DB, uint(id))
+	user, task, err := services.CompleteDaily(database.DB, uint(id))
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	return c.JSON(fiber.Map{
-		"message": "Daily tasks recorded! EXP awarded.",
+		"message": "Sync updated. Routine stability recalculated.",
 		"user":    user,
+		"task":    task,
 	})
 }
 
-// UnlockStar handler — requires knowledge_shard (min 50 chars)
-func UnlockStar(c *fiber.Ctx) error {
+// VerifyNode handler — validates knowledge shard (min 50 chars), unlocks node
+func VerifyNode(c *fiber.Ctx) error {
 	idParam := c.Params("id")
 	id, _ := strconv.Atoi(idParam)
 
 	userID := uint(1) // hardcoded for MVP
 
-	type UnlockRequest struct {
-		KnowledgeShard string `json:"knowledge_shard"`
+	type VerifyRequest struct {
+		Shard string `json:"shard"`
 	}
 
-	var req UnlockRequest
+	var req VerifyRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid request payload"})
 	}
 
-	shard := strings.TrimSpace(req.KnowledgeShard)
+	shard := strings.TrimSpace(req.Shard)
 	if len(shard) < 50 {
 		return c.Status(400).JSON(fiber.Map{"error": "Knowledge shard must be at least 50 characters. Prove your understanding."})
 	}
 
-	node, user, statusCode, err := services.UnlockStar(database.DB, uint(id), userID, shard)
+	node, user, statusCode, err := services.VerifyNode(database.DB, uint(id), userID, shard)
 	if err != nil {
 		if statusCode == 0 {
 			statusCode = 400
@@ -145,7 +144,7 @@ func UnlockStar(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{
-		"message": "Star unlocked successfully!",
+		"message": "Node verified. Cognitive score boosted.",
 		"node":    node,
 		"user":    user,
 	})
@@ -156,10 +155,10 @@ func GetProfile(c *fiber.Ctx) error {
 	userID := 1
 	var user models.User
 	if err := database.DB.First(&user, userID).Error; err != nil {
-		user = models.User{ID: uint(userID), Username: "INTP_Builder", Level: 1, EXP: 0, SkillPoints: 5, HP: 100}
+		user = models.User{ID: uint(userID), Username: "INTP_Builder"}
 		database.DB.Create(&user)
 
-		dailyTask := models.DailyTask{UserID: uint(userID), Title: "Commit Code Tracker", Type: "INT", BaseEXP: 100}
+		dailyTask := models.DailyTask{UserID: uint(userID), Title: "Commit Code Tracker", Type: "INT"}
 		database.DB.Create(&dailyTask)
 	}
 
@@ -194,7 +193,7 @@ func UpdatePhysics(c *fiber.Ctx) error {
 	return c.JSON(user)
 }
 
-// GetUniverse checks user level and returns universe data
+// GetUniverse checks user SyncRate and returns universe data
 func GetUniverse(c *fiber.Ctx) error {
 	userID := 1
 	var user models.User
@@ -202,8 +201,8 @@ func GetUniverse(c *fiber.Ctx) error {
 		return c.Status(404).JSON(fiber.Map{"error": "User not found"})
 	}
 
-	if user.Level < 5 {
-		return c.Status(403).JSON(fiber.Map{"error": "Universe access locked. Required Level: 5"})
+	if user.SyncRate < 30 {
+		return c.Status(403).JSON(fiber.Map{"error": "Universe access locked. Required Sync Rate: 30%"})
 	}
 
 	return c.JSON(fiber.Map{
@@ -225,9 +224,8 @@ func CreateDaily(c *fiber.Ctx) error {
 	userID := uint(1)
 
 	type CreateRequest struct {
-		Title   string `json:"title"`
-		Type    string `json:"type"`
-		BaseEXP int    `json:"base_exp"`
+		Title string `json:"title"`
+		Type  string `json:"type"`
 	}
 
 	var req CreateRequest
@@ -239,15 +237,10 @@ func CreateDaily(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Type must be INT, STR, or AGI"})
 	}
 
-	if req.BaseEXP <= 0 {
-		req.BaseEXP = 50
-	}
-
 	task := models.DailyTask{
-		UserID:  userID,
-		Title:   req.Title,
-		Type:    req.Type,
-		BaseEXP: req.BaseEXP,
+		UserID: userID,
+		Title:  req.Title,
+		Type:   req.Type,
 	}
 
 	if err := database.DB.Create(&task).Error; err != nil {

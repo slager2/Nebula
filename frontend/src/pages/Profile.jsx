@@ -2,14 +2,6 @@ import { useState } from 'react';
 import useStore from '../store/useStore';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip } from 'recharts';
 
-function getRank(level) {
-  if (level >= 40) return { name: 'S-Rank', color: 'text-yellow-400', shadow: '0 0 12px rgba(250,204,21,0.5)' };
-  if (level >= 30) return { name: 'B-Rank', color: 'text-purple-400', shadow: null };
-  if (level >= 20) return { name: 'C-Rank', color: 'text-blue-400', shadow: null };
-  if (level >= 10) return { name: 'D-Rank', color: 'text-green-400', shadow: null };
-  return { name: 'E-Rank', color: 'text-gray-400', shadow: null };
-}
-
 function getDominantStatGlow(statINT, statSTR, statAGI) {
   const max = Math.max(statINT, statSTR, statAGI);
   if (max === statINT) return '0 0 30px rgba(6,182,212,0.15), 0 0 60px rgba(6,182,212,0.08)';
@@ -44,7 +36,7 @@ function ProgressRing({ value, max, label, sublabel, color, glowColor, size = 13
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center flex-col">
-          <p className="text-2xl font-black text-white leading-none">{value}</p>
+          <p className="text-2xl font-black text-white leading-none">{typeof value === 'number' ? value.toFixed(0) : value}</p>
           <p className="text-[10px] text-slate-500 tracking-wider uppercase mt-0.5">{label}</p>
         </div>
       </div>
@@ -64,6 +56,12 @@ const CustomTooltip = ({ active, payload }) => {
   }
   return null;
 };
+
+function getSyncColor(rate) {
+  if (rate >= 80) return '#22d3ee'; // Cyan
+  if (rate >= 50) return '#a78bfa'; // Purple
+  return '#f87171'; // Red
+}
 
 export default function Profile() {
   const user = useStore((s) => s.user);
@@ -87,8 +85,10 @@ export default function Profile() {
     );
   }
 
-  const maxExp = user.Level * 100;
-  const rank = getRank(user.Level);
+  const syncRate = user.SyncRate ?? 0;
+  const routineScore = user.RoutineScore ?? 0;
+  const cognitiveScore = user.CognitiveScore ?? 0;
+  const syncColor = getSyncColor(syncRate);
   const radarGlow = getDominantStatGlow(user.StatINT, user.StatSTR, user.StatAGI);
 
   const radarData = [
@@ -103,63 +103,62 @@ export default function Profile() {
       <div className="flex items-end justify-between">
         <div>
           <h2 className="text-3xl font-black tracking-tight text-white">
-            OPERATOR <span className="text-blue-400">PROFILE</span>
+            DIGITAL <span style={{ color: syncColor }}>TWIN</span>
           </h2>
-          <p className="text-sm text-slate-500 mt-1">System diagnostics & combat readiness</p>
+          <p className="text-sm text-slate-500 mt-1">System synchronization & combat readiness</p>
         </div>
         <div className="text-right">
           <span
-            className={`text-lg font-black tracking-wider ${rank.color}`}
-            style={rank.shadow ? { textShadow: rank.shadow } : {}}
+            className="text-3xl font-black font-mono"
+            style={{ color: syncColor, textShadow: `0 0 20px ${syncColor}60` }}
           >
-            {rank.name}
+            {syncRate.toFixed(0)}%
           </span>
-          <p className="text-[10px] text-slate-500 font-mono mt-0.5">Lv.{user.Level}</p>
+          <p className="text-[10px] text-slate-500 font-mono mt-0.5 uppercase tracking-wider">Sync Rate</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1">
-        {/* Core Vitals Card */}
+        {/* Sync Metrics Card */}
         <div className="bg-white/[0.03] backdrop-blur-md border border-white/5 rounded-2xl p-6 flex flex-col">
-          <h3 className="text-xs font-bold tracking-[0.2em] text-slate-500 uppercase mb-6">Core Vitals</h3>
+          <h3 className="text-xs font-bold tracking-[0.2em] text-slate-500 uppercase mb-6">Sync Metrics</h3>
 
           <div className="flex items-center justify-center gap-8 flex-1">
             <ProgressRing
-              value={user.HP}
+              value={routineScore}
               max={100}
-              label="HP"
-              color="#3b82f6"
-              glowColor="rgba(59,130,246,0.6)"
+              label="ROUTINE"
+              sublabel={`${routineScore.toFixed(1)}%`}
+              color="#06b6d4"
+              glowColor="rgba(6,182,212,0.6)"
             />
             <ProgressRing
-              value={user.EXP}
-              max={maxExp}
-              label="EXP"
-              sublabel={`${user.EXP} / ${maxExp} XP`}
+              value={cognitiveScore}
+              max={100}
+              label="COGNITIVE"
+              sublabel={`${cognitiveScore.toFixed(1)}%`}
               color="#8b5cf6"
               glowColor="rgba(139,92,246,0.6)"
             />
           </div>
 
-          {/* Level + Rank + SP */}
-          <div className="mt-4 space-y-3">
-            <div className="flex items-center justify-between p-3 rounded-lg bg-white/[0.03] border border-white/5">
-              <span className="text-xs text-slate-400">Level</span>
-              <div className="flex items-center gap-2">
-                <span
-                  className={`text-xs font-bold ${rank.color}`}
-                  style={rank.shadow ? { textShadow: rank.shadow } : {}}
-                >
-                  {rank.name}
-                </span>
-                <span className="text-lg font-black text-white">{user.Level}</span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between p-3 rounded-lg bg-white/[0.03] border border-white/5">
-              <span className="text-xs text-slate-400">Skill Points</span>
-              <span className="text-lg font-black text-yellow-400" style={{ textShadow: '0 0 10px rgba(250,204,21,0.4)' }}>
-                {user.SkillPoints} SP
-              </span>
+          {/* Central Sync Rate */}
+          <div className="mt-6 flex flex-col items-center">
+            <div
+              className="w-full py-4 rounded-xl text-center relative overflow-hidden"
+              style={{
+                background: `linear-gradient(135deg, ${syncColor}08, ${syncColor}04)`,
+                border: `1px solid ${syncColor}20`,
+                boxShadow: `0 0 30px ${syncColor}10`,
+              }}
+            >
+              <p
+                className="text-4xl font-black font-mono"
+                style={{ color: syncColor, textShadow: `0 0 30px ${syncColor}40` }}
+              >
+                {syncRate.toFixed(1)}%
+              </p>
+              <p className="text-[10px] text-slate-500 tracking-[0.3em] uppercase mt-1">Global Sync Rate</p>
             </div>
           </div>
         </div>

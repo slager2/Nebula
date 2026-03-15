@@ -5,8 +5,8 @@ import CosmicTree from '../CosmicTree';
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
 function NodeInspector({ node, user, onClose }) {
-  const unlockNode = useStore((s) => s.unlockNode);
-  const [unlocking, setUnlocking] = useState(false);
+  const verifyNode = useStore((s) => s.verifyNode);
+  const [verifying, setVerifying] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
 
   // localStorage draft persistence — load saved draft for this node
@@ -16,7 +16,7 @@ function NodeInspector({ node, user, onClose }) {
     try { return localStorage.getItem(draftKey) || ''; } catch { return ''; }
   });
 
-  // Reset state when node changes (switching between nodes)
+  // Reset state when node changes
   useEffect(() => {
     setErrorMsg(null);
     if (node.unlocked) {
@@ -30,7 +30,7 @@ function NodeInspector({ node, user, onClose }) {
     }
   }, [node.id, node.unlocked]);
 
-  // Auto-save draft to localStorage
+  // Auto-save draft to localStorage on every keystroke
   useEffect(() => {
     if (node.unlocked) return;
     try {
@@ -42,25 +42,21 @@ function NodeInspector({ node, user, onClose }) {
     } catch { /* quota exceeded — silently ignore */ }
   }, [knowledgeShard, draftKey, node.unlocked]);
 
-  const cost = node.cost || 1;
   const codex = node.codex || {};
   const keyConcepts = codex.key_concepts || [];
-  const canAfford = user && user.SkillPoints >= cost;
-  const isMasteryReady = canAfford && knowledgeShard.trim().length >= 50;
+  const isShardReady = knowledgeShard.trim().length >= 50;
 
   const handleCommit = async () => {
-    if (!isMasteryReady || node.unlocked) return;
+    if (!isShardReady || node.unlocked) return;
     setErrorMsg(null);
-    setUnlocking(true);
-    const result = await unlockNode(node.id, knowledgeShard.trim());
-    setUnlocking(false);
+    setVerifying(true);
+    const result = await verifyNode(node.id, knowledgeShard.trim());
+    setVerifying(false);
     if (result.ok) {
-      // Clear draft from localStorage on success
       try { localStorage.removeItem(draftKey); } catch {}
       setKnowledgeShard('');
-      // DO NOT close panel — let user see the success state
     } else {
-      setErrorMsg(result.data?.error || 'Failed to commit mastery.');
+      setErrorMsg(result.data?.error || 'Verification failed.');
     }
   };
 
@@ -86,14 +82,13 @@ function NodeInspector({ node, user, onClose }) {
         <div className="flex items-center gap-2 mb-2">
           {node.unlocked ? (
             <span className="text-[10px] uppercase font-bold text-emerald-400 px-2 py-0.5 bg-emerald-400/10 rounded-full border border-emerald-400/20">
-              Mastered
+              Verified
             </span>
           ) : (
             <span className="text-[10px] uppercase font-bold text-purple-400 px-2 py-0.5 bg-purple-400/10 rounded-full border border-purple-400/20">
               Locked
             </span>
           )}
-          <span className="text-[10px] font-mono text-yellow-400">{cost} SP</span>
         </div>
         <h3 className="text-lg font-black text-white tracking-tight">{node.name}</h3>
         <p className="text-xs text-slate-400 mt-1 leading-relaxed">{node.desc || 'Study this node to progress.'}</p>
@@ -181,7 +176,7 @@ function NodeInspector({ node, user, onClose }) {
           </div>
         )}
 
-        {/* Previously written shard — for unlocked nodes */}
+        {/* Previously written shard — for verified nodes */}
         {node.unlocked && node.knowledge_shard && (
           <div className="p-3 rounded-lg bg-emerald-500/[0.04] border border-emerald-500/15">
             <h4 className="text-[10px] font-bold tracking-[0.2em] text-emerald-500/60 uppercase mb-2">Your Knowledge Shard</h4>
@@ -190,9 +185,8 @@ function NodeInspector({ node, user, onClose }) {
         )}
       </div>
 
-      {/* Footer — Error + Commit */}
+      {/* Footer — Error + Verify */}
       <div className="p-5 pt-3 border-t border-white/5 shrink-0">
-        {/* Error Message */}
         {errorMsg && (
           <div
             className="mb-3 p-2.5 rounded-lg text-xs font-mono"
@@ -209,29 +203,29 @@ function NodeInspector({ node, user, onClose }) {
 
         {node.unlocked ? (
           <div className="w-full text-center py-2.5 text-xs text-emerald-400 font-bold tracking-wider uppercase opacity-60">
-            ✓ MASTERY COMMITTED
+            ✓ KNOWLEDGE VERIFIED
           </div>
         ) : (
           <button
             onClick={handleCommit}
-            disabled={!isMasteryReady || unlocking}
+            disabled={!isShardReady || verifying}
             className="w-full py-3 rounded-xl text-xs uppercase tracking-[0.15em] font-black transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed"
             style={{
-              background: isMasteryReady
+              background: isShardReady
                 ? 'linear-gradient(135deg, rgba(6,182,212,0.15), rgba(139,92,246,0.15))'
                 : 'rgba(30,41,59,0.5)',
-              border: isMasteryReady ? '1px solid rgba(6,182,212,0.3)' : '1px solid rgba(51,65,85,0.3)',
-              color: isMasteryReady ? '#67e8f9' : '#475569',
-              boxShadow: isMasteryReady ? '0 0 25px rgba(6,182,212,0.12), inset 0 1px 0 rgba(255,255,255,0.05)' : 'none',
+              border: isShardReady ? '1px solid rgba(6,182,212,0.3)' : '1px solid rgba(51,65,85,0.3)',
+              color: isShardReady ? '#67e8f9' : '#475569',
+              boxShadow: isShardReady ? '0 0 25px rgba(6,182,212,0.12), inset 0 1px 0 rgba(255,255,255,0.05)' : 'none',
             }}
           >
-            {unlocking ? (
+            {verifying ? (
               <span className="flex items-center justify-center gap-2">
                 <span className="w-3 h-3 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
-                COMMITTING...
+                VERIFYING...
               </span>
             ) : (
-              `COMMIT MASTERY // ${cost} SP`
+              'VERIFY KNOWLEDGE'
             )}
           </button>
         )}
@@ -279,6 +273,9 @@ export default function Forge() {
   const handleNodeClick = (node) => {
     setActiveNode(node);
   };
+
+  // Sync Rate display
+  const syncRate = user?.SyncRate ?? 0;
 
   return (
     <div className="h-screen flex overflow-hidden">
@@ -328,11 +325,17 @@ export default function Forge() {
             </div>
           )}
 
-          {/* SP Display */}
+          {/* Sync Rate Display */}
           <div className="flex items-center justify-between p-3 rounded-lg bg-white/[0.03] border border-white/5 mb-4">
-            <span className="text-xs text-slate-400">Skill Points</span>
-            <span className="text-lg font-black text-yellow-400" style={{ textShadow: '0 0 10px rgba(250,204,21,0.4)' }}>
-              {user?.SkillPoints || 0} SP
+            <span className="text-xs text-slate-400">Sync Rate</span>
+            <span
+              className="text-lg font-black font-mono"
+              style={{
+                color: syncRate >= 80 ? '#22d3ee' : syncRate >= 50 ? '#a78bfa' : '#f87171',
+                textShadow: syncRate >= 80 ? '0 0 12px rgba(34,211,238,0.4)' : 'none',
+              }}
+            >
+              {syncRate.toFixed(0)}%
             </span>
           </div>
 

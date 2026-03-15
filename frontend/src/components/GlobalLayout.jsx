@@ -9,6 +9,12 @@ const navItems = [
   { to: '/universe', label: 'UNIVERSE', icon: '◎' },
 ];
 
+function getSyncState(rate) {
+  if (rate >= 80) return { color: '#22d3ee', label: 'OPTIMAL', borderColor: 'rgba(34,211,238,0.25)', glowColor: 'rgba(34,211,238,0.15)' };
+  if (rate >= 50) return { color: '#a78bfa', label: 'NOMINAL', borderColor: 'rgba(167,139,250,0.2)', glowColor: 'rgba(167,139,250,0.1)' };
+  return { color: '#f87171', label: 'CRITICAL', borderColor: 'rgba(248,113,113,0.3)', glowColor: 'rgba(248,113,113,0.15)' };
+}
+
 export default function GlobalLayout() {
   const fetchProfile = useStore((s) => s.fetchProfile);
   const user = useStore((s) => s.user);
@@ -17,12 +23,30 @@ export default function GlobalLayout() {
     fetchProfile();
   }, [fetchProfile]);
 
+  const syncRate = user?.SyncRate ?? 0;
+  const syncState = getSyncState(syncRate);
+
   return (
     <div className="w-full h-screen bg-[#030014] overflow-hidden flex text-white font-['Inter',system-ui,sans-serif]">
       {/* Sidebar */}
-      <aside className="w-64 flex flex-col bg-black/60 backdrop-blur-xl border-r border-white/5 relative shrink-0">
-        {/* Neon edge */}
-        <div className="absolute right-0 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-blue-500/40 to-transparent" />
+      <aside
+        className="w-64 flex flex-col bg-black/60 backdrop-blur-xl border-r relative shrink-0 transition-all duration-500"
+        style={{
+          borderColor: syncState.borderColor,
+          boxShadow: syncRate < 50
+            ? `inset -2px 0 20px ${syncState.glowColor}`
+            : syncRate >= 80
+              ? `inset -2px 0 30px ${syncState.glowColor}`
+              : 'none',
+        }}
+      >
+        {/* Neon edge — dynamic color */}
+        <div
+          className="absolute right-0 top-0 bottom-0 w-px transition-colors duration-500"
+          style={{
+            background: `linear-gradient(to bottom, transparent, ${syncState.color}60, transparent)`,
+          }}
+        />
 
         {/* Logo */}
         <div className="px-6 pt-8 pb-6">
@@ -30,7 +54,7 @@ export default function GlobalLayout() {
             NEBULA
           </h1>
           <p className="text-[10px] tracking-[0.2em] text-slate-500 mt-1 uppercase">
-            Life RPG System v2
+            Digital Twin System v3
           </p>
         </div>
 
@@ -57,25 +81,57 @@ export default function GlobalLayout() {
           ))}
         </nav>
 
-        {/* Bottom user card */}
-        <div className="mx-3 mb-4 p-4 rounded-lg bg-white/[0.03] border border-white/5">
+        {/* Bottom user card — Sync Rate indicator */}
+        <div
+          className="mx-3 mb-4 p-4 rounded-lg border transition-all duration-500"
+          style={{
+            background: `linear-gradient(135deg, ${syncState.color}05, transparent)`,
+            borderColor: syncState.borderColor,
+            boxShadow: syncRate >= 80 ? `0 0 20px ${syncState.glowColor}` : 'none',
+          }}
+        >
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold tracking-wider text-slate-400">
               {user?.Username || 'LOADING...'}
             </span>
-            <span className="text-xs font-mono text-blue-400">Lv.{user?.Level || 1}</span>
+            <span
+              className="text-[10px] font-bold tracking-wider uppercase"
+              style={{ color: syncState.color }}
+            >
+              {syncState.label}
+            </span>
           </div>
-          <div className="w-full bg-slate-800 rounded-full h-1 overflow-hidden">
+
+          {/* Sync Rate Bar */}
+          <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
             <div
-              className="bg-gradient-to-r from-blue-500 to-indigo-500 h-1 rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(59,130,246,0.6)]"
+              className="h-1.5 rounded-full transition-all duration-700"
               style={{
-                width: `${user ? (user.EXP / (user.Level * 100)) * 100 : 0}%`,
+                width: `${syncRate}%`,
+                background: syncState.color,
+                boxShadow: `0 0 8px ${syncState.glowColor}`,
               }}
             />
           </div>
-          <p className="text-[10px] text-slate-600 mt-1 font-mono">
-            {user?.EXP || 0} / {user ? user.Level * 100 : 100} XP
-          </p>
+          <div className="flex items-center justify-between mt-1.5">
+            <p className="text-[10px] text-slate-600 font-mono">SYNC RATE</p>
+            <p
+              className="text-sm font-black font-mono"
+              style={{ color: syncState.color, textShadow: `0 0 8px ${syncState.glowColor}` }}
+            >
+              {syncRate.toFixed(0)}%
+            </p>
+          </div>
+
+          {/* Entropy warning pulse for low sync */}
+          {syncRate < 50 && (
+            <div
+              className="mt-2 text-[9px] font-mono text-center tracking-wider uppercase animate-pulse"
+              style={{ color: '#f87171' }}
+            >
+              ⚠ ENTROPY DETECTED
+            </div>
+          )}
         </div>
       </aside>
 

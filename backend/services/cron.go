@@ -8,7 +8,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// InitCronJobs starts the background scheduler for daily reset and penalty logic.
+// InitCronJobs starts the background scheduler for daily reset and entropy decay.
 func InitCronJobs(db *gorm.DB) {
 	loc, err := time.LoadLocation("Asia/Qyzylorda")
 	if err != nil {
@@ -19,46 +19,45 @@ func InitCronJobs(db *gorm.DB) {
 
 	// Run daily at exactly 00:00 Asia/Qyzylorda
 	_, err = c.AddFunc("0 0 * * *", func() {
-		log.Println("[CRON] Running daily reset and penalty job (Asia/Qyzylorda)...")
+		log.Println("[CRON] Running daily Sync Engine reset (Asia/Qyzylorda)...")
 
-		// Step 1: Penalty — Subtract 15 HP per uncompleted task, floor at 0
-		penaltyResult := db.Exec(`
-			UPDATE users SET hp = GREATEST(0, hp - (
-				SELECT COALESCE(COUNT(*), 0) * 15
-				FROM daily_tasks
-				WHERE daily_tasks.user_id = users.id AND daily_tasks.is_completed = false
-			))
+		// Step 1: Cognitive Decay — reduce CognitiveScore by 5 per day (floor 0)
+		decayResult := db.Exec(`
+			UPDATE users SET cognitive_score = GREATEST(0, cognitive_score - 5)
 		`)
-		if penaltyResult.Error != nil {
-			log.Println("[CRON ERROR] Failed to apply HP penalty:", penaltyResult.Error)
+		if decayResult.Error != nil {
+			log.Println("[CRON ERROR] Failed to apply cognitive decay:", decayResult.Error)
 			return
 		}
-		log.Printf("[CRON] HP penalty applied to %d users.\n", penaltyResult.RowsAffected)
+		log.Printf("[CRON] Cognitive decay applied to %d users.\n", decayResult.RowsAffected)
 
-		// Step 2: Death mechanic — If HP = 0, deduct 1 level (min 1), reset EXP to 0, restore HP to 100
-		deathResult := db.Exec(`
-			UPDATE users
-			SET level = GREATEST(1, level - 1),
-			    exp = 0,
-			    hp = 100
-			WHERE hp = 0
+		// Step 2: Reset streaks for uncompleted tasks (entropy penalty)
+		streakResetResult := db.Exec(`
+			UPDATE daily_tasks SET streak = 0 WHERE is_completed = false
 		`)
-		if deathResult.Error != nil {
-			log.Println("[CRON ERROR] Failed to apply death mechanic:", deathResult.Error)
+		if streakResetResult.Error != nil {
+			log.Println("[CRON ERROR] Failed to reset streaks:", streakResetResult.Error)
 			return
 		}
-		if deathResult.RowsAffected > 0 {
-			log.Printf("[CRON] Death mechanic triggered for %d users.\n", deathResult.RowsAffected)
+		log.Printf("[CRON] Streaks reset for %d uncompleted tasks.\n", streakResetResult.RowsAffected)
+
+		// Step 3: Recalculate SyncRate for all users after cognitive decay
+		syncResult := db.Exec(`
+			UPDATE users SET sync_rate = (routine_score + cognitive_score) / 2.0
+		`)
+		if syncResult.Error != nil {
+			log.Println("[CRON ERROR] Failed to recalculate SyncRate:", syncResult.Error)
+			return
 		}
 
-		// Step 3: Reset all daily tasks
+		// Step 4: Reset all daily tasks
 		resetResult := db.Exec(`UPDATE daily_tasks SET is_completed = false`)
 		if resetResult.Error != nil {
 			log.Println("[CRON ERROR] Failed to reset daily tasks:", resetResult.Error)
 			return
 		}
 
-		log.Println("[CRON] Daily reset and penalty job completed successfully.")
+		log.Println("[CRON] Daily Sync Engine reset completed successfully.")
 	})
 
 	if err != nil {

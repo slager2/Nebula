@@ -8,7 +8,7 @@ const TASK_TYPE_STYLES = {
 };
 
 export default function Terminal() {
-  const { dailyTasks, fetchDailyTasks, completeDaily, createDailyTask, deleteDailyTask } = useStore();
+  const { dailyTasks, fetchDailyTasks, completeDaily, createDailyTask, deleteDailyTask, user } = useStore();
   const [completing, setCompleting] = useState(null);
   const [deleting, setDeleting] = useState(null);
   const [flash, setFlash] = useState(null);
@@ -16,7 +16,6 @@ export default function Terminal() {
   // Creation form state
   const [title, setTitle] = useState('');
   const [type, setType] = useState('INT');
-  const [baseExp, setBaseExp] = useState(50);
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
@@ -38,7 +37,7 @@ export default function Terminal() {
     e.preventDefault();
     if (!title.trim()) return;
     setCreating(true);
-    await createDailyTask({ title: title.trim(), type, base_exp: baseExp });
+    await createDailyTask({ title: title.trim(), type });
     setTitle('');
     setCreating(false);
   };
@@ -50,8 +49,7 @@ export default function Terminal() {
   };
 
   const completedCount = dailyTasks.filter((t) => t.IsCompleted).length;
-  const totalXP = dailyTasks.reduce((sum, t) => sum + (t.BaseEXP || 0), 0);
-  const earnedXP = dailyTasks.filter((t) => t.IsCompleted).reduce((sum, t) => sum + (t.BaseEXP || 0), 0);
+  const routineScore = user?.RoutineScore ?? 0;
 
   return (
     <div className="h-full p-8 flex flex-col gap-6 max-w-3xl mx-auto">
@@ -61,7 +59,7 @@ export default function Terminal() {
           <h2 className="text-3xl font-black tracking-tight text-white">
             DAILY <span className="text-emerald-400">TERMINAL</span>
           </h2>
-          <p className="text-sm text-slate-500 mt-1">Execute routines. Create habits. Grow stats.</p>
+          <p className="text-sm text-slate-500 mt-1">Execute routines. Build streaks. Maintain sync.</p>
         </div>
         <div className="text-right">
           <p className="text-2xl font-black text-white">
@@ -71,16 +69,29 @@ export default function Terminal() {
         </div>
       </div>
 
-      {/* XP Progress */}
+      {/* Routine Stability Score */}
       <div className="bg-white/[0.03] backdrop-blur-md border border-white/5 rounded-xl p-4">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-slate-500 font-bold tracking-wider uppercase">Daily XP Progress</span>
-          <span className="text-xs font-mono text-blue-400">{earnedXP} / {totalXP} XP</span>
+          <span className="text-xs text-slate-500 font-bold tracking-wider uppercase">Routine Stability Score</span>
+          <span
+            className="text-xs font-mono font-bold"
+            style={{ color: routineScore >= 80 ? '#22d3ee' : routineScore >= 50 ? '#a78bfa' : '#f87171' }}
+          >
+            {routineScore.toFixed(1)}%
+          </span>
         </div>
         <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
           <div
-            className="bg-gradient-to-r from-emerald-500 to-blue-500 h-2 rounded-full transition-all duration-500"
-            style={{ width: `${totalXP > 0 ? (earnedXP / totalXP) * 100 : 0}%`, boxShadow: '0 0 10px rgba(52,211,153,0.4)' }}
+            className="h-2 rounded-full transition-all duration-500"
+            style={{
+              width: `${routineScore}%`,
+              background: routineScore >= 80
+                ? 'linear-gradient(90deg, #06b6d4, #22d3ee)'
+                : routineScore >= 50
+                  ? 'linear-gradient(90deg, #8b5cf6, #a78bfa)'
+                  : 'linear-gradient(90deg, #ef4444, #f87171)',
+              boxShadow: `0 0 10px ${routineScore >= 80 ? 'rgba(6,182,212,0.4)' : routineScore >= 50 ? 'rgba(139,92,246,0.4)' : 'rgba(239,68,68,0.4)'}`,
+            }}
           />
         </div>
       </div>
@@ -97,15 +108,6 @@ export default function Terminal() {
             placeholder="Enter habit name..."
             className="flex-1 bg-slate-900/80 text-sm border border-slate-700/50 rounded-lg px-4 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/30 transition-all"
           />
-          <input
-            type="number"
-            value={baseExp}
-            onChange={(e) => setBaseExp(parseInt(e.target.value) || 50)}
-            min={10}
-            max={500}
-            className="w-20 bg-slate-900/80 text-sm border border-slate-700/50 rounded-lg px-3 py-2.5 text-white text-center focus:outline-none focus:border-blue-500/50 transition-all font-mono"
-          />
-          <span className="flex items-center text-[10px] text-slate-600 tracking-wider">XP</span>
         </div>
 
         <div className="flex items-center gap-3">
@@ -194,9 +196,9 @@ export default function Terminal() {
                 {style.icon} {task.Type}
               </span>
 
-              {/* XP */}
-              <span className={`text-xs font-mono shrink-0 ${task.IsCompleted ? 'text-slate-500' : 'text-blue-400'}`}>
-                +{task.BaseEXP} XP
+              {/* Streak */}
+              <span className={`text-xs font-mono shrink-0 ${task.IsCompleted ? 'text-amber-400' : 'text-slate-500'}`}>
+                🔥 x{task.Streak || 0}
               </span>
 
               {/* Delete */}
