@@ -2,25 +2,7 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
 import useStore from './store/useStore';
 
-const dummyData = {
-  nodes: [
-    { id: '1', name: 'Cosmic Awareness', desc: 'The foundation of the universe.', unlocked: true, cost: 1, codex: { overview: 'Cosmic awareness is the fundamental understanding of universal forces and energy fields.', key_concepts: ['Energy Fields', 'Universal Constants', 'Cosmic Perception'], practical_task: 'Meditate on the night sky for 10 minutes and identify 3 constellations.' } },
-    { id: '2', name: 'Astral Projection', desc: 'Leave your physical form behind.', unlocked: true, cost: 1, codex: { overview: 'Astral projection enables consciousness transfer beyond physical boundaries.', key_concepts: ['Consciousness Transfer', 'Etheric Body', 'Dimensional Shift'], practical_task: 'Practice a 5-minute visualization exercise of floating above your body.' } },
-    { id: '3', name: 'Quantum Tunneling', desc: 'Move through solid matter.', unlocked: false, cost: 1, codex: { overview: 'Quantum tunneling allows particles to pass through barriers using wave-particle duality.', key_concepts: ['Wave Functions', 'Barrier Penetration', 'Probability Amplitude'], practical_task: 'Draw a diagram showing a particle tunneling through a potential barrier.' } },
-    { id: '4', name: 'Void Singularity', desc: 'Generate a miniature black hole.', unlocked: false, cost: 2, codex: { overview: 'Void singularities compress infinite density into zero volume, warping spacetime.', key_concepts: ['Event Horizon', 'Gravitational Collapse', 'Hawking Radiation'], practical_task: 'Calculate the Schwarzschild radius for a 1 solar mass black hole.' } },
-    { id: '5', name: 'Stellar Burst', desc: 'Release energy of a dying star.', unlocked: false, cost: 1, codex: { overview: 'Stellar bursts harness the explosive energy released during stellar death cycles.', key_concepts: ['Nuclear Fusion', 'Supernova Mechanics', 'Energy Release'], practical_task: 'Research and summarize the 3 stages of a star death cycle.' } },
-    { id: '6', name: 'Nebula Weave', desc: 'Control cosmic dust.', unlocked: true, cost: 1, codex: { overview: 'Nebula weaving manipulates interstellar dust clouds to form new structures.', key_concepts: ['Dust Composition', 'Magnetic Fields', 'Star Formation'], practical_task: 'List 3 types of nebulae and explain what makes each unique.' } },
-    { id: '7', name: 'Supernova', desc: 'Ultimate explosive power.', unlocked: false, cost: 3, codex: { overview: 'A supernova is the most powerful explosion in the universe, outshining entire galaxies.', key_concepts: ['Core Collapse', 'Neutrino Burst', 'Heavy Element Synthesis'], practical_task: 'Explain in your own words why iron is the heaviest element produced by fusion.' } },
-  ],
-  links: [
-    { source: '1', target: '2' },
-    { source: '1', target: '3' },
-    { source: '2', target: '4' },
-    { source: '3', target: '5' },
-    { source: '1', target: '6' },
-    { source: '6', target: '7' },
-  ]
-};
+const API = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
 const drawStar = (ctx, cx, cy, spikes, outerRadius, innerRadius) => {
   let rot = (Math.PI / 2) * 3;
@@ -54,6 +36,7 @@ export default function CosmicTree({ constellationId, onNodeClick }) {
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
   const [hoveredNode, setHoveredNode] = useState(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [fetchError, setFetchError] = useState(false);
 
   // Handle container resize
   useEffect(() => {
@@ -83,11 +66,12 @@ export default function CosmicTree({ constellationId, onNodeClick }) {
     }
   }, []);
 
-  // Fetch logic with fallback to dummy data
+  // Fetch constellation data — no dummy data fallback
   useEffect(() => {
     if (!constellationId) return;
+    setFetchError(false);
     
-    fetch(`http://localhost:3000/api/v1/constellations/${constellationId}`)
+    fetch(`${API}/constellations/${constellationId}`)
       .then((res) => {
          if (!res.ok) throw new Error("API not ready");
          return res.json();
@@ -96,16 +80,52 @@ export default function CosmicTree({ constellationId, onNodeClick }) {
         if (data.nodes && data.nodes.length > 0) {
           setGraphData({ nodes: data.nodes, links: data.links || [] });
         } else {
-          setGraphData(dummyData);
+          setFetchError(true);
+          setGraphData(null);
         }
       })
       .catch(err => {
-        console.warn("Backend unavailable or tree empty. Rendering dummy data.", err);
-        setGraphData(dummyData);
+        console.warn("Backend unavailable or tree empty.", err);
+        setFetchError(true);
+        setGraphData(null);
       });
   }, [constellationId, setGraphData]);
 
-  const currentGraphData = graphData || dummyData;
+  // Настройка физики графа: расталкиваем ноды и удлиняем связи
+  useEffect(() => {
+    try {
+      if (fgRef.current) {
+        const charge = fgRef.current.d3Force('charge');
+        if (charge) charge.strength(-1200);
+        const link = fgRef.current.d3Force('link');
+        if (link) link.distance(120);
+      }
+    } catch (e) {
+      console.warn('Could not configure graph physics:', e);
+    }
+  }, [graphData]);
+
+  // No data — show error state instead of dummy data
+  if (fetchError || !graphData) {
+    return (
+      <div
+        ref={containerRef}
+        className="w-full h-full relative overflow-hidden bg-[#0B0C10] flex items-center justify-center"
+        style={{
+          backgroundImage: 'radial-gradient(circle at center, #1b0f3a 0%, #0B0C10 70%)'
+        }}
+      >
+        <div className="text-center space-y-3">
+          <div className="text-red-500 font-mono text-sm animate-pulse tracking-widest">
+            UPLINK SEVERED // NO CONSTELLATION DATA
+          </div>
+          <div className="text-slate-600 font-mono text-xs">
+            Generate a skill tree from the side panel to initialize the Forge
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div 
@@ -120,37 +140,47 @@ export default function CosmicTree({ constellationId, onNodeClick }) {
         ref={fgRef}
         width={dimensions.width}
         height={dimensions.height}
-        graphData={currentGraphData}
+        graphData={graphData}
         backgroundColor="rgba(0,0,0,0)"
         nodeLabel=""
         
         linkColor={() => 'rgba(0, 255, 255, 0.4)'}
-        linkWidth={(link) => {
-          const sourceUnlocked = link.source.unlocked || currentGraphData.nodes.find(n => n.id === link.source)?.unlocked;
-          const targetUnlocked = link.target.unlocked || currentGraphData.nodes.find(n => n.id === link.target)?.unlocked;
-          return (sourceUnlocked && targetUnlocked) ? 2.5 : 1.5;
-        }}
-        linkDirectionalParticles={(link) => {
-          const sourceUnlocked = link.source.unlocked || currentGraphData.nodes.find(n => n.id === link.source)?.unlocked;
-          const targetUnlocked = link.target.unlocked || currentGraphData.nodes.find(n => n.id === link.target)?.unlocked;
-          return (sourceUnlocked && targetUnlocked) ? 2 : 0;
-        }}
+        linkWidth={() => 1.5}
+        linkDirectionalParticles={0}
         linkDirectionalParticleSpeed={0.005}
         
         nodeCanvasObject={(node, ctx, globalScale) => {
           const isHovered = hoveredNode && hoveredNode.id === node.id;
-          
-          ctx.shadowBlur = isHovered ? 25 : 15;
-          ctx.shadowColor = node.unlocked ? '#00ffff' : '#8a2be2'; 
-          ctx.fillStyle = node.unlocked ? '#ffffff' : '#4b0082';
-
           const size = isHovered ? 8 : 5;
+          
+          // Цвета: разблокировано = белая звезда, заблокировано = фиолетовая
+          const starColor = node.unlocked ? '#ffffff' : '#6b21a8';
+          // Свечение: циановое для открытых, тускло-фиолетовое для закрытых
+          const glowColor = node.unlocked ? 'rgba(0, 255, 255, 0.15)' : 'rgba(126, 34, 206, 0.15)';
+
+          // 1. Оптимизированное свечение (маленький прозрачный круг вместо тяжелого shadowBlur)
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, size * 1.8, 0, 2 * Math.PI, false);
+          ctx.fillStyle = glowColor;
+          ctx.fill();
+
+          // 2. Дополнительное свечение при наведении мышки (сделано тоньше и прозрачнее)
+          if (isHovered) {
+            ctx.beginPath();
+            ctx.arc(node.x, node.y, size * 2.5, 0, 2 * Math.PI, false);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+            ctx.fill();
+          }
+
+          // 3. Отрисовка самой звезды
+          ctx.fillStyle = starColor;
           drawStar(ctx, node.x, node.y, 4, size, size / 2.5);
-          ctx.shadowBlur = 0;
         }}
 
         onNodeHover={(node) => {
-          containerRef.current.style.cursor = node ? 'pointer' : 'default';
+          if (containerRef.current) {
+            containerRef.current.style.cursor = node ? 'pointer' : 'default';
+          }
           setHoveredNode(node);
         }}
         onNodeClick={(node) => {

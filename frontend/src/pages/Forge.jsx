@@ -1,13 +1,46 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import useStore from '../store/useStore';
 import CosmicTree from '../CosmicTree';
 
+const API = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+
 function NodeInspector({ node, user, onClose }) {
   const unlockNode = useStore((s) => s.unlockNode);
-  const setActiveNode = useStore((s) => s.setActiveNode);
   const [unlocking, setUnlocking] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
-  const [knowledgeShard, setKnowledgeShard] = useState('');
+
+  // localStorage draft persistence — load saved draft for this node
+  const draftKey = `draft_${node.id}`;
+  const [knowledgeShard, setKnowledgeShard] = useState(() => {
+    if (node.unlocked) return '';
+    try { return localStorage.getItem(draftKey) || ''; } catch { return ''; }
+  });
+
+  // Reset state when node changes (switching between nodes)
+  useEffect(() => {
+    setErrorMsg(null);
+    if (node.unlocked) {
+      setKnowledgeShard('');
+      return;
+    }
+    try {
+      setKnowledgeShard(localStorage.getItem(`draft_${node.id}`) || '');
+    } catch {
+      setKnowledgeShard('');
+    }
+  }, [node.id, node.unlocked]);
+
+  // Auto-save draft to localStorage
+  useEffect(() => {
+    if (node.unlocked) return;
+    try {
+      if (knowledgeShard.trim().length > 0) {
+        localStorage.setItem(draftKey, knowledgeShard);
+      } else {
+        localStorage.removeItem(draftKey);
+      }
+    } catch { /* quota exceeded — silently ignore */ }
+  }, [knowledgeShard, draftKey, node.unlocked]);
 
   const cost = node.cost || 1;
   const codex = node.codex || {};
@@ -22,8 +55,10 @@ function NodeInspector({ node, user, onClose }) {
     const result = await unlockNode(node.id, knowledgeShard.trim());
     setUnlocking(false);
     if (result.ok) {
+      // Clear draft from localStorage on success
+      try { localStorage.removeItem(draftKey); } catch {}
       setKnowledgeShard('');
-      setActiveNode(null);
+      // DO NOT close panel — let user see the success state
     } else {
       setErrorMsg(result.data?.error || 'Failed to commit mastery.');
     }
@@ -220,7 +255,7 @@ export default function Forge() {
     setIsGenerating(true);
     setGenError(null);
     try {
-      const res = await fetch('http://localhost:3000/api/v1/constellations/generate', {
+      const res = await fetch(`${API}/constellations/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ topic: topicInput }),

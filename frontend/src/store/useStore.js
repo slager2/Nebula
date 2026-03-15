@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-const API = 'http://localhost:3000/api/v1';
+const API = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
 const useStore = create((set, get) => ({
   user: null,
@@ -113,12 +113,23 @@ const useStore = create((set, get) => ({
         set({ user: data.user });
         const gd = get().graphData;
         if (gd) {
-          const updatedNodes = gd.nodes.map((n) =>
-            n.id === String(nodeId) || n.id === nodeId
-              ? { ...n, unlocked: true, knowledge_shard: knowledgeShard }
-              : n
-          );
-          set({ graphData: { ...gd, nodes: updatedNodes } });
+          // IMPORTANT: Mutate nodes in-place to preserve d3-force x/y/vx/vy positions.
+          // Spreading creates new objects → d3 loses coordinates → nodes fly off.
+          let targetNode = null;
+          gd.nodes.forEach((n) => {
+            if (n.id === String(nodeId) || n.id === nodeId) {
+              n.unlocked = true;
+              n.knowledge_shard = knowledgeShard;
+              targetNode = n;
+            }
+          });
+          // New array references to trigger React re-render without losing d3 state
+          set({ graphData: { nodes: [...gd.nodes], links: [...gd.links] } });
+
+          // Sync activeNode so the inspector UI updates immediately
+          if (targetNode) {
+            set({ activeNode: { ...targetNode } });
+          }
         }
       }
       return { ok: res.ok, data };
