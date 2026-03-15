@@ -267,3 +267,34 @@ func DeleteDaily(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{"message": "Task deleted"})
 }
+
+// GetArchive returns all constellations and their unlocked nodes
+func GetArchive(c *fiber.Ctx) error {
+	userID := 1
+
+	var constellations []models.Constellation
+	if err := database.DB.Where("user_id = ?", userID).Find(&constellations).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch constellations"})
+	}
+
+	type ArchiveData struct {
+		models.Constellation
+		Nodes []models.StarNode `json:"nodes"`
+	}
+
+	var result []ArchiveData
+
+	for _, c := range constellations {
+		var unlockedNodes []models.StarNode
+		if err := database.DB.Where("constellation_id = ? AND is_unlocked = ?", c.ID, true).Find(&unlockedNodes).Error; err != nil {
+			unlockedNodes = []models.StarNode{} // fallback
+		}
+		
+		result = append(result, ArchiveData{
+			Constellation: c,
+			Nodes:         unlockedNodes,
+		})
+	}
+
+	return c.JSON(result)
+}

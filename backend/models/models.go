@@ -66,8 +66,10 @@ type StarNode struct {
 	Title           string
 	Description     string
 	Codex           AIPayload `gorm:"type:jsonb;default:'{}'"`
-	KnowledgeShard  string    `gorm:"type:text"` // User's own summary
-	IsUnlocked      bool      `gorm:"default:false"`
+	KnowledgeShard  string     `gorm:"type:text"` // User's own summary
+	IsUnlocked      bool       `gorm:"default:false"`
+	ReviewCount     int        `gorm:"default:0"`
+	NextReviewAt    *time.Time
 }
 
 type DailyTask struct {

@@ -1,16 +1,8 @@
 import { useState } from 'react';
 import useStore from '../store/useStore';
-import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Tooltip } from 'recharts';
 
-function getDominantStatGlow(statINT, statSTR, statAGI) {
-  const max = Math.max(statINT, statSTR, statAGI);
-  if (max === statINT) return '0 0 30px rgba(6,182,212,0.15), 0 0 60px rgba(6,182,212,0.08)';
-  if (max === statSTR) return '0 0 30px rgba(239,68,68,0.15), 0 0 60px rgba(239,68,68,0.08)';
-  return '0 0 30px rgba(168,85,247,0.15), 0 0 60px rgba(168,85,247,0.08)';
-}
-
-function ProgressRing({ value, max, label, sublabel, color, glowColor, size = 130 }) {
-  const strokeWidth = 6;
+function ProgressRing({ value, max, label, sublabel, color, glowColor, size = 160 }) {
+  const strokeWidth = 8;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const pct = max > 0 ? Math.min(value / max, 1) : 0;
@@ -32,35 +24,33 @@ function ProgressRing({ value, max, label, sublabel, color, glowColor, size = 13
             strokeDashoffset={offset}
             strokeLinecap="round"
             className="transition-all duration-700 ease-out"
-            style={{ filter: `drop-shadow(0 0 10px ${glowColor})` }}
+            style={{ filter: `drop-shadow(0 0 12px ${glowColor})` }}
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center flex-col">
-          <p className="text-2xl font-black text-white leading-none">{typeof value === 'number' ? value.toFixed(0) : value}</p>
-          <p className="text-[10px] text-slate-500 tracking-wider uppercase mt-0.5">{label}</p>
+          <p className="text-3xl font-black text-white leading-none font-mono">
+            {typeof value === 'number' ? value.toFixed(0) : value}
+          </p>
+          <p className="text-[10px] text-slate-500 tracking-wider uppercase mt-1">{label}</p>
         </div>
       </div>
-      {sublabel && <p className="text-[10px] text-slate-600 mt-1.5 font-mono">{sublabel}</p>}
+      {sublabel && <p className="text-xs text-slate-600 mt-2 font-mono tracking-widest uppercase">{sublabel}</p>}
     </div>
   );
 }
-
-const CustomTooltip = ({ active, payload }) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-slate-900/95 border border-white/10 backdrop-blur-md rounded-lg px-3 py-2 shadow-xl">
-        <p className="text-xs text-slate-400">{payload[0].payload.stat}</p>
-        <p className="text-sm font-bold text-cyan-400">{payload[0].value}</p>
-      </div>
-    );
-  }
-  return null;
-};
 
 function getSyncColor(rate) {
   if (rate >= 80) return '#22d3ee'; // Cyan
   if (rate >= 50) return '#a78bfa'; // Purple
   return '#f87171'; // Red
+}
+
+function getBMIState(bmi) {
+  if (bmi === 0 || isNaN(bmi)) return { label: 'AWAITING DATA', color: '#64748b' };
+  if (bmi < 18.5) return { label: 'DEFICIT', color: '#f87171' };
+  if (bmi < 25) return { label: 'OPTIMAL', color: '#22d3ee' };
+  if (bmi < 30) return { label: 'SURPLUS', color: '#fbbf24' };
+  return { label: 'CRITICAL MASS', color: '#ef4444' };
 }
 
 export default function Profile() {
@@ -71,16 +61,18 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
-    if (!height && !weight) return;
+    const h = height || user?.Height || 0;
+    const w = weight || user?.Weight || 0;
+    if (!h && !w) return;
     setSaving(true);
-    await updatePhysics(height || user?.Height || 0, weight || user?.Weight || 0);
+    await updatePhysics(h, w);
     setSaving(false);
   };
 
   if (!user) {
     return (
       <div className="h-full flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-6 h-6 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -89,23 +81,21 @@ export default function Profile() {
   const routineScore = user.RoutineScore ?? 0;
   const cognitiveScore = user.CognitiveScore ?? 0;
   const syncColor = getSyncColor(syncRate);
-  const radarGlow = getDominantStatGlow(user.StatINT, user.StatSTR, user.StatAGI);
 
-  const radarData = [
-    { stat: 'INT', value: user.StatINT, fullMark: 100 },
-    { stat: 'STR', value: user.StatSTR, fullMark: 100 },
-    { stat: 'AGI', value: user.StatAGI, fullMark: 100 },
-  ];
+  const currentHeight = parseFloat(height || user.Height) || 0;
+  const currentWeight = parseFloat(weight || user.Weight) || 0;
+  const bmi = currentHeight > 0 && currentWeight > 0 ? (currentWeight / ((currentHeight / 100) ** 2)) : 0;
+  const bmiState = getBMIState(bmi);
 
   return (
-    <div className="h-full p-8 flex flex-col gap-6 max-w-5xl mx-auto">
+    <div className="h-full p-8 flex flex-col gap-6 max-w-6xl mx-auto">
       {/* Header */}
       <div className="flex items-end justify-between">
         <div>
           <h2 className="text-3xl font-black tracking-tight text-white">
             DIGITAL <span style={{ color: syncColor }}>TWIN</span>
           </h2>
-          <p className="text-sm text-slate-500 mt-1">System synchronization & combat readiness</p>
+          <p className="text-sm text-slate-500 mt-1 uppercase tracking-widest text-[10px]">System synchronization & somatic feedback</p>
         </div>
         <div className="text-right">
           <span
@@ -114,21 +104,22 @@ export default function Profile() {
           >
             {syncRate.toFixed(0)}%
           </span>
-          <p className="text-[10px] text-slate-500 font-mono mt-0.5 uppercase tracking-wider">Sync Rate</p>
+          <p className="text-[10px] text-slate-500 font-mono mt-0.5 uppercase tracking-wider">Global Sync Rate</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1">
-        {/* Sync Metrics Card */}
-        <div className="bg-white/[0.03] backdrop-blur-md border border-white/5 rounded-2xl p-6 flex flex-col">
-          <h3 className="text-xs font-bold tracking-[0.2em] text-slate-500 uppercase mb-6">Sync Metrics</h3>
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 flex-1 min-h-0">
+        
+        {/* Left Column: Sync Metrics */}
+        <div className="lg:col-span-2 bg-white/[0.03] backdrop-blur-md border border-white/5 rounded-2xl p-6 flex flex-col overflow-y-auto hidden-scrollbar">
+          <h3 className="text-xs font-bold tracking-[0.2em] text-slate-500 uppercase mb-8">Sync Metrics</h3>
 
-          <div className="flex items-center justify-center gap-8 flex-1">
+          <div className="flex flex-col items-center justify-center gap-12 flex-1">
             <ProgressRing
               value={routineScore}
               max={100}
               label="ROUTINE"
-              sublabel={`${routineScore.toFixed(1)}%`}
+              sublabel={`${routineScore.toFixed(1)}% STABILITY`}
               color="#06b6d4"
               glowColor="rgba(6,182,212,0.6)"
             />
@@ -136,119 +127,122 @@ export default function Profile() {
               value={cognitiveScore}
               max={100}
               label="COGNITIVE"
-              sublabel={`${cognitiveScore.toFixed(1)}%`}
+              sublabel={`${cognitiveScore.toFixed(1)}% CAPACITY`}
               color="#8b5cf6"
               glowColor="rgba(139,92,246,0.6)"
             />
           </div>
-
-          {/* Central Sync Rate */}
-          <div className="mt-6 flex flex-col items-center">
-            <div
-              className="w-full py-4 rounded-xl text-center relative overflow-hidden"
-              style={{
-                background: `linear-gradient(135deg, ${syncColor}08, ${syncColor}04)`,
-                border: `1px solid ${syncColor}20`,
-                boxShadow: `0 0 30px ${syncColor}10`,
-              }}
-            >
-              <p
-                className="text-4xl font-black font-mono"
-                style={{ color: syncColor, textShadow: `0 0 30px ${syncColor}40` }}
-              >
-                {syncRate.toFixed(1)}%
-              </p>
-              <p className="text-[10px] text-slate-500 tracking-[0.3em] uppercase mt-1">Global Sync Rate</p>
-            </div>
-          </div>
         </div>
 
-        {/* Radar Chart Card — Dynamic Glow */}
-        <div
-          className="bg-white/[0.03] backdrop-blur-md border border-white/5 rounded-2xl p-6 flex flex-col transition-shadow duration-500"
-          style={{ boxShadow: radarGlow }}
-        >
-          <h3 className="text-xs font-bold tracking-[0.2em] text-slate-500 uppercase mb-2">Combat Radar</h3>
+        {/* Right Column: Holographic Twin */}
+        <div className="lg:col-span-3 bg-[#050510]/95 backdrop-blur-xl border border-cyan-500/20 rounded-2xl p-6 flex flex-col relative overflow-hidden" 
+             style={{ boxShadow: 'inset 0 0 80px rgba(6,182,212,0.05)' }}>
+          
+          {/* Neon grid background */}
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(6,182,212,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.04)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none" />
+          
+          <h3 className="text-xs font-bold tracking-[0.2em] text-cyan-500/70 uppercase mb-2 relative z-10">Holographic Twin</h3>
 
-          <div className="flex-1 flex items-center justify-center" style={{ minHeight: 240 }}>
-            <ResponsiveContainer width="100%" height={260}>
-              <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="65%">
-                <PolarGrid stroke="#1e293b" strokeWidth={0.5} gridType="polygon" />
-                <PolarAngleAxis
-                  dataKey="stat"
-                  tick={{ fill: '#9ca3af', fontSize: 12, fontFamily: 'monospace', fontWeight: 700 }}
-                  axisLine={false}
-                />
-                <PolarRadiusAxis
-                  angle={90}
-                  domain={[0, 100]}
-                  tick={false}
-                  axisLine={false}
-                />
-                <Radar
-                  name="Stats"
-                  dataKey="value"
-                  stroke="#66FCF1"
-                  fill="#66FCF1"
-                  fillOpacity={0.3}
-                  strokeWidth={2}
-                  dot={{ r: 5, fill: '#66FCF1', strokeWidth: 0, filter: 'drop-shadow(0 0 4px #66FCF1)' }}
-                />
-                <Tooltip content={<CustomTooltip />} />
-              </RadarChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Stat values below chart */}
-          <div className="grid grid-cols-3 gap-2 mt-1">
-            <div className="text-center p-2 rounded-lg bg-cyan-400/5 border border-cyan-400/10">
-              <p className="text-lg font-black text-cyan-400">{user.StatINT}</p>
-              <p className="text-[10px] text-slate-500 tracking-wider font-mono">🧠 INT</p>
-            </div>
-            <div className="text-center p-2 rounded-lg bg-red-400/5 border border-red-400/10">
-              <p className="text-lg font-black text-red-400">{user.StatSTR}</p>
-              <p className="text-[10px] text-slate-500 tracking-wider font-mono">💪 STR</p>
-            </div>
-            <div className="text-center p-2 rounded-lg bg-lime-400/5 border border-lime-400/10">
-              <p className="text-lg font-black text-lime-400">{user.StatAGI}</p>
-              <p className="text-[10px] text-slate-500 tracking-wider font-mono">⚡ AGI</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Physical Metrics */}
-        <div className="bg-white/[0.03] backdrop-blur-md border border-white/5 rounded-2xl p-6 flex flex-col">
-          <h3 className="text-xs font-bold tracking-[0.2em] text-slate-500 uppercase mb-6">Physical Metrics</h3>
-          <div className="flex flex-col gap-4 flex-1">
-            <div>
-              <label className="text-xs text-slate-500 mb-1.5 block">Height (cm)</label>
+          <div className="flex-1 flex items-center justify-center relative z-10 w-full h-full min-h-[400px]">
+            {/* Height Input (Top Left) */}
+            <div className="absolute top-12 left-8 flex flex-col">
+              <label className="text-[10px] text-cyan-500/60 uppercase tracking-widest font-mono mb-1">Height (cm)</label>
               <input
                 type="number"
-                placeholder={user.Height || '170'}
+                placeholder={user.Height || '0'}
                 value={height}
                 onChange={(e) => setHeight(e.target.value)}
-                className="w-full bg-slate-900/80 text-sm border border-slate-700/50 rounded-lg px-4 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/30 transition-all"
+                className="w-24 bg-black/60 text-lg font-mono text-cyan-300 border border-cyan-500/30 rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/50 transition-all text-center placeholder-cyan-900 shadow-[0_0_15px_rgba(6,182,212,0.1)]"
               />
             </div>
-            <div>
-              <label className="text-xs text-slate-500 mb-1.5 block">Weight (kg)</label>
+
+            {/* Weight Input (Bottom Left) */}
+            <div className="absolute bottom-16 left-8 flex flex-col">
+              <label className="text-[10px] text-cyan-500/60 uppercase tracking-widest font-mono mb-1">Weight (kg)</label>
               <input
                 type="number"
-                placeholder={user.Weight || '70'}
+                placeholder={user.Weight || '0'}
                 value={weight}
                 onChange={(e) => setWeight(e.target.value)}
-                className="w-full bg-slate-900/80 text-sm border border-slate-700/50 rounded-lg px-4 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/30 transition-all"
+                className="w-24 bg-black/60 text-lg font-mono text-cyan-300 border border-cyan-500/30 rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/50 transition-all text-center placeholder-cyan-900 shadow-[0_0_15px_rgba(6,182,212,0.1)]"
               />
             </div>
-            <div className="mt-auto">
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="w-full bg-blue-600/15 hover:bg-blue-600/25 text-blue-400 hover:text-blue-300 border border-blue-500/25 rounded-lg py-2.5 text-xs uppercase tracking-wider font-bold transition-all disabled:opacity-50"
-              >
-                {saving ? 'SYNCING...' : 'UPDATE METRICS'}
-              </button>
+
+            {/* BMI Display (Right Center) */}
+            <div className="absolute right-8 top-1/2 -translate-y-1/2 flex flex-col items-end">
+              <p className="text-[10px] text-cyan-500/60 uppercase tracking-widest font-mono mb-2">Mass Index</p>
+              <p className="text-5xl font-black font-mono" style={{ color: bmiState.color, textShadow: `0 0 20px ${bmiState.color}80` }}>
+                {bmi > 0 ? bmi.toFixed(1) : '0.0'}
+              </p>
+              <p className="text-xs tracking-[0.2em] uppercase mt-3 font-bold px-3 py-1.5 bg-black/50 border rounded" style={{ borderColor: `${bmiState.color}40`, color: bmiState.color, boxShadow: `0 0 10px ${bmiState.color}20` }}>
+                {bmiState.label}
+              </p>
             </div>
+
+            {/* Abstract Humanoid SVG */}
+            <svg viewBox="0 0 200 400" className="w-[180px] h-[360px] drop-shadow-[0_0_25px_rgba(6,182,212,0.35)] pointer-events-none">
+              <g stroke="#06b6d4" strokeWidth="1.5" fill="none" opacity="0.6">
+                {/* Scanner line going down */}
+                <line x1="-50" y1="0" x2="250" y2="0" stroke="#06b6d4" strokeWidth="2" opacity="0.8">
+                  <animate attributeName="y1" values="-20;420;-20" dur="4s" repeatCount="indefinite" />
+                  <animate attributeName="y2" values="-20;420;-20" dur="4s" repeatCount="indefinite" />
+                </line>
+
+                {/* Head */}
+                <circle cx="100" cy="50" r="22" strokeDasharray="4 4" />
+                <circle cx="100" cy="50" r="14" opacity="0.4" />
+                
+                {/* Core/Spine */}
+                <line x1="100" y1="72" x2="100" y2="210" strokeDasharray="6 4" strokeWidth="2" />
+                
+                {/* Shoulders */}
+                <path d="M 40 100 Q 100 80 160 100" strokeWidth="2" />
+                
+                {/* Arms */}
+                <polyline points="40,100 25,170 20,240" strokeDasharray="5 5" />
+                <polyline points="160,100 175,170 180,240" strokeDasharray="5 5" />
+                
+                {/* Torso/Ribcage */}
+                <path d="M 60 110 Q 40 160 100 210 Q 160 160 140 110" />
+                <path d="M 70 125 Q 55 160 100 190 Q 145 160 130 125" opacity="0.5" />
+                
+                {/* Pelvis */}
+                <path d="M 70 210 Q 100 230 130 210" strokeWidth="2" />
+                
+                {/* Legs */}
+                <polyline points="70,210 60,300 60,380" strokeDasharray="5 5" />
+                <polyline points="130,210 140,300 140,380" strokeDasharray="5 5" />
+                
+                {/* Joints / Nodes */}
+                <circle cx="40" cy="100" r="4" fill="#06b6d4" />
+                <circle cx="160" cy="100" r="4" fill="#06b6d4" />
+                <circle cx="25" cy="170" r="3" fill="#06b6d4" />
+                <circle cx="175" cy="170" r="3" fill="#06b6d4" />
+                <circle cx="70" cy="210" r="4" fill="#06b6d4" />
+                <circle cx="130" cy="210" r="4" fill="#06b6d4" />
+                <circle cx="60" cy="300" r="3" fill="#06b6d4" />
+                <circle cx="140" cy="300" r="3" fill="#06b6d4" />
+              </g>
+            </svg>
+          </div>
+
+          {/* Sync Button */}
+          <div className="relative z-10 mt-2">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="w-full bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 rounded-xl py-4 text-xs tracking-[0.2em] font-black uppercase transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2"
+              style={{ boxShadow: '0 0 20px rgba(6,182,212,0.1)' }}
+            >
+              {saving ? (
+                <>
+                  <span className="w-3 h-3 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+                  SYNCHRONIZING...
+                </>
+              ) : (
+                'SYNC METRICS'
+              )}
+            </button>
           </div>
         </div>
       </div>

@@ -139,6 +139,19 @@ const useStore = create((set, get) => ({
       return { ok: false };
     }
   },
+
+  archiveData: [],
+  fetchArchive: async () => {
+    try {
+      const res = await fetch(`${API}/archive`);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        set({ archiveData: data });
+      }
+    } catch (e) {
+      console.error('Failed to fetch archive', e);
+    }
+  },
 }));
 
 export default useStore;

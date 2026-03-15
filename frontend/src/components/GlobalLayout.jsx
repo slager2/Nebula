@@ -6,7 +6,7 @@ const navItems = [
   { to: '/profile', label: 'OPERATOR', icon: '⊕' },
   { to: '/terminal', label: 'TERMINAL', icon: '⌘' },
   { to: '/forge', label: 'FORGE', icon: '✦' },
-  { to: '/universe', label: 'UNIVERSE', icon: '◎' },
+  { to: '/universe', label: 'ARCHIVE', icon: '◎' },
 ];
 
 function getSyncState(rate) {
@@ -48,13 +48,12 @@ export default function GlobalLayout() {
           }}
         />
 
-        {/* Logo */}
         <div className="px-6 pt-8 pb-6">
           <h1 className="text-xl font-black tracking-[0.3em] text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400">
             NEBULA
           </h1>
           <p className="text-[10px] tracking-[0.2em] text-slate-500 mt-1 uppercase">
-            Digital Twin System v3
+            NEBULA OS // KNOWLEDGE SYNTHESIS
           </p>
         </div>
 
@@ -92,7 +91,7 @@ export default function GlobalLayout() {
         >
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold tracking-wider text-slate-400">
-              {user?.Username || 'LOADING...'}
+              {user?.Username || 'OPERATOR'}
             </span>
             <span
               className="text-[10px] font-bold tracking-wider uppercase"

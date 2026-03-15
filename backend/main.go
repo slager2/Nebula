@@ -38,8 +38,9 @@ func main() {
 	api.Get("/profile", handlers.GetProfile)
 	api.Put("/profile/physics", handlers.UpdatePhysics)
 
-	// Universe
+	// Universe & Archive
 	api.Get("/universe", handlers.GetUniverse)
+	api.Get("/archive", handlers.GetArchive)
 
 	// AI Generative Tree endpoints
 	api.Post("/constellations/generate", handlers.GenerateConstellation)
