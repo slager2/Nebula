@@ -6,7 +6,8 @@ const navItems = [
   { to: '/profile', label: 'OPERATOR', icon: '⊕' },
   { to: '/terminal', label: 'TERMINAL', icon: '⌘' },
   { to: '/forge', label: 'FORGE', icon: '✦' },
-  { to: '/universe', label: 'ARCHIVE', icon: '◎' },
+  { to: '/archive', label: 'ARCHIVE', icon: '📚' },
+  { to: '/universe', label: 'UNIVERSE', icon: '🌌' },
 ];
 
 function getSyncState(rate) {

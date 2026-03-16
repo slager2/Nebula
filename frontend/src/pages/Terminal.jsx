@@ -1,17 +1,17 @@
 import { useEffect, useState } from 'react';
 import useStore from '../store/useStore';
+import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 
 const TASK_TYPE_STYLES = {
-  INT: { color: 'text-cyan-400', bg: 'bg-cyan-400/10', border: 'border-cyan-400/20', glow: '#22d3ee', icon: '🧠' },
-  STR: { color: 'text-red-400', bg: 'bg-red-400/10', border: 'border-red-400/20', glow: '#f87171', icon: '💪' },
-  AGI: { color: 'text-lime-400', bg: 'bg-lime-400/10', border: 'border-lime-400/20', glow: '#a3e635', icon: '⚡' },
+  INT: { color: 'text-cyan-400', glow: 'rgba(34,211,238,0.4)', icon: '🧠' },
+  STR: { color: 'text-red-400', glow: 'rgba(239,68,68,0.4)', icon: '💪' },
+  AGI: { color: 'text-lime-400', glow: 'rgba(163,230,53,0.4)', icon: '⚡' },
 };
 
 export default function Terminal() {
   const { dailyTasks, fetchDailyTasks, completeDaily, createDailyTask, deleteDailyTask, user } = useStore();
   const [completing, setCompleting] = useState(null);
   const [deleting, setDeleting] = useState(null);
-  const [flash, setFlash] = useState(null);
 
   // Creation form state
   const [title, setTitle] = useState('');
@@ -25,12 +25,8 @@ export default function Terminal() {
   const handleComplete = async (task) => {
     if (task.IsCompleted || completing) return;
     setCompleting(task.ID);
-    const result = await completeDaily(task.ID);
+    await completeDaily(task.ID);
     setCompleting(null);
-    if (result.ok) {
-      setFlash(task.ID);
-      setTimeout(() => setFlash(null), 1000);
-    }
   };
 
   const handleCreate = async (e) => {
@@ -48,173 +44,180 @@ export default function Terminal() {
     setDeleting(null);
   };
 
-  const completedCount = dailyTasks.filter((t) => t.IsCompleted).length;
   const routineScore = user?.RoutineScore ?? 0;
 
+  // Mock 7-day history array ending with the actual routineScore
+  const chartData = [
+    { day: 'D-6', score: Math.min(100, Math.max(0, routineScore - 30)) },
+    { day: 'D-5', score: Math.min(100, Math.max(0, routineScore - 15)) },
+    { day: 'D-4', score: Math.min(100, Math.max(0, routineScore - 40)) },
+    { day: 'D-3', score: Math.min(100, Math.max(0, routineScore - 10)) },
+    { day: 'D-2', score: Math.min(100, Math.max(0, routineScore + 10)) },
+    { day: 'D-1', score: Math.min(100, Math.max(0, routineScore + 5)) },
+    { day: 'T-0', score: routineScore },
+  ];
+
   return (
-    <div className="h-full p-8 flex flex-col gap-6 max-w-3xl mx-auto">
-      {/* Header */}
-      <div className="flex items-end justify-between">
-        <div>
-          <h2 className="text-3xl font-black tracking-tight text-white">
-            DAILY <span className="text-emerald-400">TERMINAL</span>
-          </h2>
-          <p className="text-sm text-slate-500 mt-1">Execute routines. Build streaks. Maintain sync.</p>
-        </div>
-        <div className="text-right">
-          <p className="text-2xl font-black text-white">
-            {completedCount}<span className="text-slate-600">/{dailyTasks.length}</span>
-          </p>
-          <p className="text-[10px] text-slate-500 tracking-wider uppercase">Completed</p>
-        </div>
-      </div>
-
-      {/* Routine Stability Score */}
-      <div className="bg-white/[0.03] backdrop-blur-md border border-white/5 rounded-xl p-4">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-slate-500 font-bold tracking-wider uppercase">Routine Stability Score</span>
-          <span
-            className="text-xs font-mono font-bold"
-            style={{ color: routineScore >= 80 ? '#22d3ee' : routineScore >= 50 ? '#a78bfa' : '#f87171' }}
-          >
+    <div className="h-full flex flex-col max-w-5xl mx-auto p-8 gap-6 font-mono text-sm leading-relaxed overflow-hidden">
+      
+      {/* Top Section (Analytics) */}
+      <div className="w-full bg-[#050510]/80 backdrop-blur-md border border-cyan-500/20 rounded-xl overflow-hidden relative shrink-0" style={{ boxShadow: 'inset 0 0 40px rgba(6,182,212,0.03)' }}>
+        <p className="absolute top-4 left-6 text-[10px] tracking-[0.3em] text-cyan-500/60 uppercase font-black z-10 flex items-center gap-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(34,211,238,1)]" />
+          ROUTINE STABILITY TELEMETRY
+        </p>
+        
+        <div className="absolute top-4 right-6 text-right z-10">
+          <p className="text-[10px] text-slate-500 tracking-widest uppercase mb-1">Current Sync</p>
+          <p className="text-2xl font-black text-cyan-400" style={{ textShadow: '0 0 15px rgba(34,211,238,0.5)' }}>
             {routineScore.toFixed(1)}%
-          </span>
+          </p>
         </div>
-        <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
-          <div
-            className="h-2 rounded-full transition-all duration-500"
-            style={{
-              width: `${routineScore}%`,
-              background: routineScore >= 80
-                ? 'linear-gradient(90deg, #06b6d4, #22d3ee)'
-                : routineScore >= 50
-                  ? 'linear-gradient(90deg, #8b5cf6, #a78bfa)'
-                  : 'linear-gradient(90deg, #ef4444, #f87171)',
-              boxShadow: `0 0 10px ${routineScore >= 80 ? 'rgba(6,182,212,0.4)' : routineScore >= 50 ? 'rgba(139,92,246,0.4)' : 'rgba(239,68,68,0.4)'}`,
-            }}
-          />
+
+        {/* Faint Dotted Grid Overlay */}
+        <div className="absolute inset-0 bg-[radial-gradient(rgba(6,182,212,0.1)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none opacity-50" />
+
+        <div className="w-full h-[200px] mt-8">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={chartData} margin={{ top: 20, right: 0, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="#06b6d4" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <Area 
+                type="monotone" 
+                dataKey="score" 
+                stroke="#06b6d4" 
+                strokeWidth={2}
+                fillOpacity={1} 
+                fill="url(#colorScore)" 
+                isAnimationActive={true}
+                animationDuration={1500}
+                style={{ filter: 'drop-shadow(0 0 8px rgba(6,182,212,0.6))' }}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
         </div>
       </div>
 
-      {/* Command Line — Create Task Form */}
-      <form onSubmit={handleCreate} className="bg-white/[0.03] backdrop-blur-md border border-white/5 rounded-xl p-5">
-        <h3 className="text-xs font-bold tracking-[0.2em] text-slate-500 uppercase mb-4">⌘ New Command</h3>
-
-        <div className="flex gap-3 mb-3">
+      {/* Middle Section (CLI Input) */}
+      <form onSubmit={handleCreate} className="w-full shrink-0 flex items-center gap-4">
+        <div className="flex-1 flex items-center bg-black/60 border border-slate-800 rounded-lg overflow-hidden focus-within:border-cyan-500/50 focus-within:shadow-[0_0_15px_rgba(6,182,212,0.1)] transition-all">
+          <span className="text-cyan-500/70 pl-4 select-none font-bold">{'>'}</span>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Enter habit name..."
-            className="flex-1 bg-slate-900/80 text-sm border border-slate-700/50 rounded-lg px-4 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/30 transition-all"
+            placeholder="Enter execution sequence..."
+            className="flex-1 bg-transparent border-none px-3 py-3 text-cyan-50 placeholder-slate-700 outline-none w-full"
+            spellCheck="false"
           />
         </div>
-
-        <div className="flex items-center gap-3">
-          {/* Type Toggle */}
-          <div className="flex gap-2 flex-1">
-            {Object.entries(TASK_TYPE_STYLES).map(([key, style]) => (
+        
+        <div className="flex gap-2">
+          {Object.entries(TASK_TYPE_STYLES).map(([key, style]) => {
+            const isActive = type === key;
+            return (
               <button
                 key={key}
                 type="button"
                 onClick={() => setType(key)}
-                className={`flex-1 py-2 rounded-lg text-xs font-bold tracking-wider border transition-all duration-200 ${
-                  type === key
-                    ? `${style.bg} ${style.color} ${style.border}`
-                    : 'bg-transparent text-slate-600 border-slate-800 hover:border-slate-600'
+                className={`flex items-center justify-center w-12 h-12 rounded-lg border text-xs font-bold transition-all duration-300 ${
+                  isActive 
+                    ? `border-cyan-400 bg-cyan-400/10 ${style.color}` 
+                    : 'border-slate-800 bg-black/40 text-slate-600 hover:border-slate-600'
                 }`}
-                style={type === key ? { boxShadow: `0 0 15px ${style.glow}30` } : {}}
+                style={{
+                  boxShadow: isActive ? `0 0 15px ${style.glow}` : 'none'
+                }}
+                title={key}
               >
-                {style.icon} {key}
+                {style.icon}
               </button>
-            ))}
-          </div>
-
-          {/* Submit */}
-          <button
-            type="submit"
-            disabled={creating || !title.trim()}
-            className="px-6 py-2 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 rounded-lg text-xs font-bold tracking-wider uppercase transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-            style={{ boxShadow: title.trim() ? '0 0 12px rgba(52,211,153,0.15)' : 'none' }}
-          >
-            {creating ? '...' : 'EXECUTE'}
-          </button>
+            );
+          })}
         </div>
+
+        <button
+          type="submit"
+          disabled={creating || !title.trim()}
+          className="h-12 px-6 bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/20 rounded-lg text-xs font-black tracking-[0.2em] uppercase transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2"
+          style={{ textShadow: title.trim() ? '0 0 8px rgba(34,211,238,0.5)' : 'none' }}
+        >
+          {creating ? 'SYNTHESIZING' : 'EXECUTE'}
+        </button>
       </form>
 
-      {/* Task List */}
-      <div className="flex flex-col gap-2.5 overflow-y-auto flex-1 pb-4">
-        {dailyTasks.length === 0 && (
-          <div className="text-center py-12 text-slate-600">
-            <p className="text-sm">No routines assigned. Create one above.</p>
-          </div>
-        )}
-
-        {dailyTasks.map((task) => {
-          const style = TASK_TYPE_STYLES[task.Type] || TASK_TYPE_STYLES.INT;
-          const isFlashing = flash === task.ID;
-
-          return (
-            <div
-              key={task.ID}
-              className={`group w-full text-left rounded-xl p-4 border transition-all duration-300 relative overflow-hidden flex items-center gap-4 ${
-                task.IsCompleted
-                  ? 'bg-white/[0.04] border-slate-700/50'
-                  : `bg-white/[0.03] ${style.border} hover:bg-white/[0.05]`
-              } ${isFlashing ? 'ring-2 ring-emerald-400/40' : ''}`}
-            >
-              {isFlashing && (
-                <div className="absolute inset-0 bg-emerald-400/5 animate-pulse rounded-xl pointer-events-none" />
-              )}
-
-              {/* Checkbox */}
-              <button
-                onClick={() => handleComplete(task)}
-                disabled={task.IsCompleted || completing === task.ID}
-                className={`w-6 h-6 rounded-md border-2 flex items-center justify-center shrink-0 transition-all cursor-pointer ${
-                  task.IsCompleted
-                    ? 'bg-emerald-500/20 border-emerald-500/40'
-                    : 'border-slate-600 hover:border-slate-400'
-                } ${completing === task.ID ? 'animate-pulse' : ''}`}
-              >
-                {task.IsCompleted && (
-                  <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
-                )}
-              </button>
-
-              {/* Info */}
-              <div className="flex-1 min-w-0">
-                <p className={`font-medium text-sm truncate ${task.IsCompleted ? 'line-through text-slate-400' : 'text-white'}`}>
-                  {task.Title}
-                </p>
-              </div>
-
-              {/* Type badge */}
-              <span className={`text-[10px] font-bold tracking-wider px-2.5 py-1 rounded-full ${style.bg} ${style.color} ${style.border} border shrink-0 ${task.IsCompleted ? 'opacity-50' : ''}`}>
-                {style.icon} {task.Type}
-              </span>
-
-              {/* Streak */}
-              <span className={`text-xs font-mono shrink-0 ${task.IsCompleted ? 'text-amber-400' : 'text-slate-500'}`}>
-                🔥 x{task.Streak || 0}
-              </span>
-
-              {/* Delete */}
-              <button
-                onClick={(e) => { e.stopPropagation(); handleDelete(task.ID); }}
-                disabled={deleting === task.ID}
-                className="opacity-40 group-hover:opacity-100 transition-opacity text-slate-500 hover:text-red-400 shrink-0 p-1 disabled:animate-pulse"
-                title="Delete task"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                </svg>
-              </button>
+      {/* Bottom Section (Execution Log) */}
+      <div className="flex-1 bg-black/40 border border-white/5 rounded-xl overflow-hidden flex flex-col">
+        <div className="px-6 py-3 border-b border-white/5 bg-white/[0.02] flex items-center justify-between pointer-events-none select-none">
+          <span className="text-[10px] text-slate-500 font-bold tracking-[0.3em] uppercase">SYSTEM LOG // OUTSTANDING OPERATIONS</span>
+          <span className="text-[10px] text-slate-500 font-bold tracking-[0.3em] uppercase">STREAK MULTIPLIER</span>
+        </div>
+        <div className="flex-1 overflow-y-auto hidden-scrollbar p-6 space-y-2">
+          {dailyTasks.length === 0 && (
+            <div className="text-center text-slate-600 py-10 tracking-widest uppercase text-xs">
+              [ NO OPERATIONS PENDING ]
             </div>
-          );
-        })}
+          )}
+          {dailyTasks.map((task) => {
+            const isDone = task.IsCompleted;
+            const style = TASK_TYPE_STYLES[task.Type] || TASK_TYPE_STYLES.INT;
+
+            return (
+              <div 
+                key={task.ID}
+                className={`group flex items-center justify-between p-3 rounded bg-black/30 border-l-2 transition-all hover:bg-white/[0.03] ${
+                  isDone 
+                    ? 'border-emerald-500/30 text-slate-500' // Dimmed for completed
+                    : `border-slate-700 text-cyan-50 hover:border-cyan-500/50`
+                }`}
+              >
+                <div className="flex items-center gap-4 min-w-0">
+                  {/* Strict Square Checkbox */}
+                  <button
+                    onClick={() => handleComplete(task)}
+                    disabled={isDone || completing === task.ID}
+                    className={`shrink-0 w-4 h-4 flex items-center justify-center border transition-all ${
+                      isDone 
+                        ? 'bg-emerald-500/50 border-emerald-500' 
+                        : 'bg-[#050510] border-cyan-500/40 hover:border-cyan-400 hover:shadow-[0_0_8px_rgba(34,211,238,0.4)]'
+                    }`}
+                  >
+                    {isDone && <span className="text-[10px] text-black">✓</span>}
+                  </button>
+
+                  <span className="text-[10px] uppercase font-bold tracking-widest opacity-60 w-8" style={{ color: style.glow }}>
+                    {task.Type}
+                  </span>
+
+                  <span className={`truncate text-sm ${isDone ? 'line-through opacity-70' : ''}`}>
+                    {task.Title}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-6 shrink-0">
+                  {/* FIRE STREAK */}
+                  <span className={`text-xs font-black tracking-widest w-16 text-right ${isDone ? 'text-emerald-400/80' : 'text-amber-500'}`} 
+                        style={{ textShadow: isDone ? 'none' : '0 0 10px rgba(245,158,11,0.5)' }}>
+                    🔥 x{String(task.Streak || 0).padStart(2, '0')}
+                  </span>
+                  
+                  {/* Delete button (shows on hover) */}
+                  <button
+                    onClick={() => handleDelete(task.ID)}
+                    disabled={deleting === task.ID}
+                    className="opacity-0 group-hover:opacity-100 text-red-500/50 hover:text-red-400 transition-all px-2 focus:outline-none"
+                  >
+                    [DEL]
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

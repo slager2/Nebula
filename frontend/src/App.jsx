@@ -4,6 +4,7 @@ import Profile from './pages/Profile';
 import Terminal from './pages/Terminal';
 import Forge from './pages/Forge';
 import Archive from './pages/Universe';
+import Universe from './pages/UniverseMap';
 
 function App() {
   return (
@@ -12,7 +13,8 @@ function App() {
         <Route path="/profile" element={<Profile />} />
         <Route path="/terminal" element={<Terminal />} />
         <Route path="/forge" element={<Forge />} />
-        <Route path="/universe" element={<Archive />} />
+        <Route path="/archive" element={<Archive />} />
+        <Route path="/universe" element={<Universe />} />
         <Route path="*" element={<Navigate to="/profile" replace />} />
       </Route>
     </Routes>
