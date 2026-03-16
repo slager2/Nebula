@@ -3,8 +3,8 @@ import GlobalLayout from './components/GlobalLayout';
 import Profile from './pages/Profile';
 import Terminal from './pages/Terminal';
 import Forge from './pages/Forge';
-import Archive from './pages/Universe';
-import Universe from './pages/UniverseMap';
+import Archive from './pages/Archive';
+import Universe from './pages/Universe';
 
 function App() {
   return (

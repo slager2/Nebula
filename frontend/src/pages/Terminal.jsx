@@ -1,26 +1,60 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import useStore from '../store/useStore';
-import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 
 const TASK_TYPE_STYLES = {
-  INT: { color: 'text-cyan-400', glow: 'rgba(34,211,238,0.4)', icon: '🧠' },
-  STR: { color: 'text-red-400', glow: 'rgba(239,68,68,0.4)', icon: '💪' },
-  AGI: { color: 'text-lime-400', glow: 'rgba(163,230,53,0.4)', icon: '⚡' },
+  INT: { color: 'text-cyan-400', borderColor: 'border-cyan-500/50', glowColor: 'rgba(34,211,238,0.35)', label: 'INT' },
+  STR: { color: 'text-red-400',  borderColor: 'border-red-500/50',  glowColor: 'rgba(239,68,68,0.35)',  label: 'STR' },
+  AGI: { color: 'text-lime-400', borderColor: 'border-lime-500/50', glowColor: 'rgba(163,230,53,0.35)', label: 'AGI' },
 };
+
+// Seeded pseudo-random number generator (mulberry32) for deterministic heatmap
+function mulberry32(seed) {
+  return function () {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+// Generate 90-day deterministic activity data (0=missed, 1=low, 2=med, 3=high)
+function generateHeatmapData(routineScore) {
+  const rand = mulberry32(42 + Math.floor(routineScore));
+  return Array.from({ length: 90 }, (_, i) => {
+    const r = rand();
+    // Bias toward higher activity as index increases (more recent = better)
+    const bias = i / 90;
+    const raw = r + bias * 0.4;
+    if (raw < 0.25) return 0;
+    if (raw < 0.5)  return 1;
+    if (raw < 0.75) return 2;
+    return 3;
+  });
+}
+
+const HEAT_COLORS = [
+  'bg-slate-800',                                        // 0 — missed
+  'bg-cyan-900',                                         // 1 — low
+  'bg-cyan-600',                                         // 2 — medium
+  'bg-cyan-400',                                         // 3 — high
+];
+
+const HEAT_GLOWS = [
+  '',
+  '',
+  '0 0 4px rgba(8,145,178,0.6)',
+  '0 0 6px rgba(34,211,238,0.9)',
+];
 
 export default function Terminal() {
   const { dailyTasks, fetchDailyTasks, completeDaily, createDailyTask, deleteDailyTask, user } = useStore();
   const [completing, setCompleting] = useState(null);
-  const [deleting, setDeleting] = useState(null);
+  const [deleting, setDeleting]     = useState(null);
+  const [title, setTitle]           = useState('');
+  const [type, setType]             = useState('INT');
+  const [creating, setCreating]     = useState(false);
 
-  // Creation form state
-  const [title, setTitle] = useState('');
-  const [type, setType] = useState('INT');
-  const [creating, setCreating] = useState(false);
-
-  useEffect(() => {
-    fetchDailyTasks();
-  }, [fetchDailyTasks]);
+  useEffect(() => { fetchDailyTasks(); }, [fetchDailyTasks]);
 
   const handleComplete = async (task) => {
     if (task.IsCompleted || completing) return;
@@ -45,178 +79,242 @@ export default function Terminal() {
   };
 
   const routineScore = user?.RoutineScore ?? 0;
+  const heatmap = useMemo(() => generateHeatmapData(routineScore), [routineScore]);
 
-  // Mock 7-day history array ending with the actual routineScore
-  const chartData = [
-    { day: 'D-6', score: Math.min(100, Math.max(0, routineScore - 30)) },
-    { day: 'D-5', score: Math.min(100, Math.max(0, routineScore - 15)) },
-    { day: 'D-4', score: Math.min(100, Math.max(0, routineScore - 40)) },
-    { day: 'D-3', score: Math.min(100, Math.max(0, routineScore - 10)) },
-    { day: 'D-2', score: Math.min(100, Math.max(0, routineScore + 10)) },
-    { day: 'D-1', score: Math.min(100, Math.max(0, routineScore + 5)) },
-    { day: 'T-0', score: routineScore },
-  ];
+  const completedCount = dailyTasks.filter(t => t.IsCompleted).length;
+  const totalCount     = dailyTasks.length;
 
   return (
-    <div className="h-full flex flex-col max-w-5xl mx-auto p-8 gap-6 font-mono text-sm leading-relaxed overflow-hidden">
-      
-      {/* Top Section (Analytics) */}
-      <div className="w-full bg-[#050510]/80 backdrop-blur-md border border-cyan-500/20 rounded-xl overflow-hidden relative shrink-0" style={{ boxShadow: 'inset 0 0 40px rgba(6,182,212,0.03)' }}>
-        <p className="absolute top-4 left-6 text-[10px] tracking-[0.3em] text-cyan-500/60 uppercase font-black z-10 flex items-center gap-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(34,211,238,1)]" />
-          ROUTINE STABILITY TELEMETRY
-        </p>
-        
-        <div className="absolute top-4 right-6 text-right z-10">
-          <p className="text-[10px] text-slate-500 tracking-widest uppercase mb-1">Current Sync</p>
-          <p className="text-2xl font-black text-cyan-400" style={{ textShadow: '0 0 15px rgba(34,211,238,0.5)' }}>
-            {routineScore.toFixed(1)}%
-          </p>
+    <div className="h-full flex flex-col font-mono text-sm overflow-hidden bg-[#050510]">
+
+      {/* ── TOP: SYSTEM TELEMETRY HEATMAP ─────────────────────────────── */}
+      <div className="shrink-0 border-b border-white/5" style={{ background: 'rgba(5,5,16,0.95)' }}>
+        {/* Header bar */}
+        <div className="flex items-center justify-between px-6 pt-4 pb-3 border-b border-white/[0.04]">
+          <div className="flex items-center gap-3">
+            <span
+              className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"
+              style={{ boxShadow: '0 0 8px rgba(34,211,238,1)' }}
+            />
+            <span className="text-[10px] tracking-[0.35em] text-cyan-500/70 font-black uppercase">
+              SYSTEM TELEMETRY // 90-DAY ROUTINE STABILITY
+            </span>
+          </div>
+          <div className="flex items-center gap-6">
+            <span className="text-[10px] text-slate-600 tracking-widest uppercase">
+              OPS {completedCount}/{totalCount}
+            </span>
+            <span
+              className="text-lg font-black text-cyan-400 tabular-nums"
+              style={{ textShadow: '0 0 12px rgba(34,211,238,0.6)' }}
+            >
+              {routineScore.toFixed(1)}%
+            </span>
+          </div>
         </div>
 
-        {/* Faint Dotted Grid Overlay */}
-        <div className="absolute inset-0 bg-[radial-gradient(rgba(6,182,212,0.1)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none opacity-50" />
-
-        <div className="w-full h-[200px] mt-8">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 20, right: 0, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#06b6d4" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <Area 
-                type="monotone" 
-                dataKey="score" 
-                stroke="#06b6d4" 
-                strokeWidth={2}
-                fillOpacity={1} 
-                fill="url(#colorScore)" 
-                isAnimationActive={true}
-                animationDuration={1500}
-                style={{ filter: 'drop-shadow(0 0 8px rgba(6,182,212,0.6))' }}
+        {/* Heatmap grid */}
+        <div className="px-6 py-4">
+          {/* Legend */}
+          <div className="flex items-center gap-1.5 mb-3">
+            <span className="text-[9px] text-slate-600 tracking-widest uppercase mr-1">LESS</span>
+            {HEAT_COLORS.map((cls, i) => (
+              <div
+                key={i}
+                className={`w-2.5 h-2.5 rounded-sm ${cls}`}
+                style={{ boxShadow: HEAT_GLOWS[i] }}
               />
-            </AreaChart>
-          </ResponsiveContainer>
+            ))}
+            <span className="text-[9px] text-slate-600 tracking-widest uppercase ml-1">MORE</span>
+          </div>
+
+          {/* 90 cells — 13 columns × 7 rows */}
+          <div
+            className="grid gap-[3px]"
+            style={{ gridTemplateColumns: 'repeat(13, minmax(0, 1fr))', gridTemplateRows: 'repeat(7, minmax(0, 1fr))' }}
+          >
+            {heatmap.map((level, i) => (
+              <div
+                key={i}
+                className={`w-3 h-3 rounded-sm transition-all duration-200 cursor-default ${HEAT_COLORS[level]}`}
+                style={{ boxShadow: HEAT_GLOWS[level] }}
+                title={`Day -${90 - i}: Activity ${level}`}
+              />
+            ))}
+          </div>
+
+          {/* X-axis labels */}
+          <div className="flex justify-between mt-2 px-[1px]">
+            {['90D', '78D', '65D', '52D', '39D', '26D', '13D', 'NOW'].map(label => (
+              <span key={label} className="text-[8px] text-slate-700 tracking-wider font-mono">{label}</span>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Middle Section (CLI Input) */}
-      <form onSubmit={handleCreate} className="w-full shrink-0 flex items-center gap-4">
-        <div className="flex-1 flex items-center bg-black/60 border border-slate-800 rounded-lg overflow-hidden focus-within:border-cyan-500/50 focus-within:shadow-[0_0_15px_rgba(6,182,212,0.1)] transition-all">
-          <span className="text-cyan-500/70 pl-4 select-none font-bold">{'>'}</span>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Enter execution sequence..."
-            className="flex-1 bg-transparent border-none px-3 py-3 text-cyan-50 placeholder-slate-700 outline-none w-full"
-            spellCheck="false"
-          />
-        </div>
-        
-        <div className="flex gap-2">
-          {Object.entries(TASK_TYPE_STYLES).map(([key, style]) => {
+      {/* ── MIDDLE: CLI INPUT ────────────────────────────────────────────── */}
+      <form
+        onSubmit={handleCreate}
+        className="shrink-0 flex items-center gap-0 border-b border-white/5"
+        style={{ background: 'rgba(0,0,0,0.6)' }}
+      >
+        {/* Prompt glyph */}
+        <span
+          className="pl-6 pr-3 text-cyan-400 font-black text-base select-none"
+          style={{ textShadow: '0 0 10px rgba(34,211,238,0.8)' }}
+        >
+          &gt;
+        </span>
+
+        {/* Input */}
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="AWAITING COMMAND..."
+          className="flex-1 bg-transparent border-none py-3.5 text-cyan-50 placeholder-slate-700 outline-none font-mono text-sm tracking-wider"
+          spellCheck="false"
+          autoComplete="off"
+        />
+
+        {/* Type toggles */}
+        <div className="flex items-center gap-px px-4">
+          {Object.entries(TASK_TYPE_STYLES).map(([key, s]) => {
             const isActive = type === key;
             return (
               <button
                 key={key}
                 type="button"
                 onClick={() => setType(key)}
-                className={`flex items-center justify-center w-12 h-12 rounded-lg border text-xs font-bold transition-all duration-300 ${
-                  isActive 
-                    ? `border-cyan-400 bg-cyan-400/10 ${style.color}` 
-                    : 'border-slate-800 bg-black/40 text-slate-600 hover:border-slate-600'
+                className={`px-3 py-1.5 text-[10px] font-black tracking-[0.2em] border transition-all duration-200 ${
+                  isActive
+                    ? `${s.color} ${s.borderColor} bg-white/[0.05]`
+                    : 'text-slate-600 border-slate-800 hover:border-slate-600 hover:text-slate-400'
                 }`}
-                style={{
-                  boxShadow: isActive ? `0 0 15px ${style.glow}` : 'none'
-                }}
-                title={key}
+                style={{ boxShadow: isActive ? `0 0 10px ${s.glowColor}, inset 0 0 8px ${s.glowColor.replace('0.35', '0.08')}` : 'none' }}
               >
-                {style.icon}
+                {key}
               </button>
             );
           })}
         </div>
 
+        {/* Execute button */}
         <button
           type="submit"
           disabled={creating || !title.trim()}
-          className="h-12 px-6 bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/20 rounded-lg text-xs font-black tracking-[0.2em] uppercase transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2"
-          style={{ textShadow: title.trim() ? '0 0 8px rgba(34,211,238,0.5)' : 'none' }}
+          className="h-full px-6 py-3.5 text-[10px] font-black tracking-[0.3em] uppercase border-l border-white/5 text-cyan-400 hover:bg-cyan-500/5 transition-all disabled:opacity-20 disabled:cursor-not-allowed"
+          style={{ textShadow: title.trim() ? '0 0 8px rgba(34,211,238,0.6)' : 'none' }}
         >
-          {creating ? 'SYNTHESIZING' : 'EXECUTE'}
+          {creating ? 'SYNTH...' : 'EXEC'}
         </button>
       </form>
 
-      {/* Bottom Section (Execution Log) */}
-      <div className="flex-1 bg-black/40 border border-white/5 rounded-xl overflow-hidden flex flex-col">
-        <div className="px-6 py-3 border-b border-white/5 bg-white/[0.02] flex items-center justify-between pointer-events-none select-none">
-          <span className="text-[10px] text-slate-500 font-bold tracking-[0.3em] uppercase">SYSTEM LOG // OUTSTANDING OPERATIONS</span>
-          <span className="text-[10px] text-slate-500 font-bold tracking-[0.3em] uppercase">STREAK MULTIPLIER</span>
+      {/* ── BOTTOM: EXECUTION LOG ────────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Log header */}
+        <div className="shrink-0 flex items-center justify-between px-6 py-2 border-b border-white/[0.04] bg-black/30 select-none pointer-events-none">
+          <span className="text-[9px] text-slate-600 tracking-[0.35em] uppercase font-bold">
+            EXECUTION LOG // OUTSTANDING OPERATIONS
+          </span>
+          <span className="text-[9px] text-slate-600 tracking-[0.35em] uppercase font-bold">
+            STREAK
+          </span>
         </div>
-        <div className="flex-1 overflow-y-auto hidden-scrollbar p-6 space-y-2">
+
+        {/* Log rows */}
+        <div className="flex-1 overflow-y-auto hidden-scrollbar">
           {dailyTasks.length === 0 && (
-            <div className="text-center text-slate-600 py-10 tracking-widest uppercase text-xs">
-              [ NO OPERATIONS PENDING ]
+            <div className="flex items-center justify-center h-32">
+              <span className="text-[10px] text-slate-700 tracking-[0.3em] uppercase font-mono">
+                [ NO OPERATIONS PENDING ]
+              </span>
             </div>
           )}
+
           {dailyTasks.map((task) => {
-            const isDone = task.IsCompleted;
-            const style = TASK_TYPE_STYLES[task.Type] || TASK_TYPE_STYLES.INT;
+            const isDone  = task.IsCompleted;
+            const style   = TASK_TYPE_STYLES[task.Type] || TASK_TYPE_STYLES.INT;
+            const streak  = String(task.Streak || 0).padStart(2, '0');
 
             return (
-              <div 
+              <div
                 key={task.ID}
-                className={`group flex items-center justify-between p-3 rounded bg-black/30 border-l-2 transition-all hover:bg-white/[0.03] ${
-                  isDone 
-                    ? 'border-emerald-500/30 text-slate-500' // Dimmed for completed
-                    : `border-slate-700 text-cyan-50 hover:border-cyan-500/50`
+                className={`group flex items-center gap-4 px-6 py-2 border-b border-white/[0.04] transition-colors duration-150 ${
+                  isDone ? 'opacity-50' : 'hover:bg-white/[0.015]'
                 }`}
               >
-                <div className="flex items-center gap-4 min-w-0">
-                  {/* Strict Square Checkbox */}
-                  <button
-                    onClick={() => handleComplete(task)}
-                    disabled={isDone || completing === task.ID}
-                    className={`shrink-0 w-4 h-4 flex items-center justify-center border transition-all ${
-                      isDone 
-                        ? 'bg-emerald-500/50 border-emerald-500' 
-                        : 'bg-[#050510] border-cyan-500/40 hover:border-cyan-400 hover:shadow-[0_0_8px_rgba(34,211,238,0.4)]'
-                    }`}
-                  >
-                    {isDone && <span className="text-[10px] text-black">✓</span>}
-                  </button>
+                {/* Checkbox */}
+                <button
+                  onClick={() => handleComplete(task)}
+                  disabled={isDone || completing === task.ID}
+                  className={`shrink-0 w-3.5 h-3.5 border transition-all duration-200 flex items-center justify-center ${
+                    isDone
+                      ? 'bg-cyan-400 border-cyan-400'
+                      : 'bg-transparent border-slate-600 hover:border-cyan-500 hover:shadow-[0_0_6px_rgba(34,211,238,0.5)]'
+                  }`}
+                >
+                  {isDone && (
+                    <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                      <path d="M1 4l2 2 4-4" stroke="#050510" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  )}
+                </button>
 
-                  <span className="text-[10px] uppercase font-bold tracking-widest opacity-60 w-8" style={{ color: style.glow }}>
-                    {task.Type}
-                  </span>
+                {/* Type badge */}
+                <span
+                  className={`shrink-0 text-[9px] font-black tracking-[0.25em] w-7 ${style.color}`}
+                  style={{ textShadow: isDone ? 'none' : style.glowColor ? `0 0 6px ${style.glowColor}` : 'none' }}
+                >
+                  {task.Type}
+                </span>
 
-                  <span className={`truncate text-sm ${isDone ? 'line-through opacity-70' : ''}`}>
-                    {task.Title}
-                  </span>
-                </div>
+                {/* Task title */}
+                <span
+                  className={`flex-1 truncate text-xs tracking-wider ${
+                    isDone ? 'line-through text-slate-600' : 'text-slate-400'
+                  }`}
+                >
+                  {task.Title}
+                </span>
 
-                <div className="flex items-center gap-6 shrink-0">
-                  {/* FIRE STREAK */}
-                  <span className={`text-xs font-black tracking-widest w-16 text-right ${isDone ? 'text-emerald-400/80' : 'text-amber-500'}`} 
-                        style={{ textShadow: isDone ? 'none' : '0 0 10px rgba(245,158,11,0.5)' }}>
-                    🔥 x{String(task.Streak || 0).padStart(2, '0')}
-                  </span>
-                  
-                  {/* Delete button (shows on hover) */}
-                  <button
-                    onClick={() => handleDelete(task.ID)}
-                    disabled={deleting === task.ID}
-                    className="opacity-0 group-hover:opacity-100 text-red-500/50 hover:text-red-400 transition-all px-2 focus:outline-none"
-                  >
-                    [DEL]
-                  </button>
-                </div>
+                {/* Streak */}
+                <span
+                  className={`shrink-0 text-[10px] font-black tracking-widest tabular-nums ${
+                    isDone ? 'text-slate-600' : 'text-amber-500'
+                  }`}
+                  style={{ textShadow: isDone ? 'none' : '0 0 8px rgba(245,158,11,0.5)' }}
+                >
+                  🔥 STREAK: {streak}
+                </span>
+
+                {/* Delete */}
+                <button
+                  onClick={() => handleDelete(task.ID)}
+                  disabled={deleting === task.ID}
+                  className="shrink-0 opacity-0 group-hover:opacity-100 text-[9px] text-red-500/40 hover:text-red-400 tracking-widest transition-all font-mono"
+                >
+                  [DEL]
+                </button>
               </div>
             );
           })}
+        </div>
+
+        {/* Log footer */}
+        <div className="shrink-0 flex items-center gap-6 px-6 py-2 border-t border-white/[0.04] bg-black/20 select-none pointer-events-none">
+          <span className="text-[9px] text-slate-700 font-mono tracking-widest">
+            INT: {user?.StatINT ?? 10}
+          </span>
+          <span className="text-[9px] text-slate-700 font-mono tracking-widest">
+            STR: {user?.StatSTR ?? 10}
+          </span>
+          <span className="text-[9px] text-slate-700 font-mono tracking-widest">
+            AGI: {user?.StatAGI ?? 10}
+          </span>
+          <span className="ml-auto text-[9px] text-slate-700 font-mono tracking-widest">
+            NEBULA OS v4.1 // TERMINAL SUBSYSTEM
+          </span>
         </div>
       </div>
     </div>
