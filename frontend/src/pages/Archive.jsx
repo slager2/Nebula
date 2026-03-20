@@ -16,11 +16,13 @@ function getPendingCount(archiveData) {
 }
 
 export default function Archive() {
-  const archiveData  = useStore((s) => s.archiveData);
-  const fetchArchive = useStore((s) => s.fetchArchive);
+   const archiveData  = useStore((s) => s.archiveData);
+   const fetchArchive = useStore((s) => s.fetchArchive);
+   const reviewNode   = useStore((s) => s.reviewNode);
 
-  const [selectedConstellationId, setSelectedConstellationId] = useState(null);
-  const [selectedShardId, setSelectedShardId]                 = useState(null);
+   const [selectedConstellationId, setSelectedConstellationId] = useState(null);
+   const [selectedShardId, setSelectedShardId]                 = useState(null);
+   const [reviewingNodeId, setReviewingNodeId]                 = useState(null);
 
   useEffect(() => { fetchArchive(); }, [fetchArchive]);
 
@@ -42,10 +44,17 @@ export default function Archive() {
   const selectedShard         = shards.find(n => n.ID === selectedShardId);
   const pendingCount          = getPendingCount(archiveData);
 
-  const handleReview = (nodeId, difficulty) => {
-    // TODO: wire to /api/v1/nodes/:id/review when backend endpoint is ready
-    console.log(`Review Node ${nodeId} — Difficulty: ${difficulty}`);
-  };
+   const handleReview = async (nodeId, quality) => {
+     setReviewingNodeId(nodeId);
+     const result = await reviewNode(nodeId, quality);
+     if (result.ok) {
+       // Show success message for 1.5s, then hide buttons
+       setTimeout(() => setReviewingNodeId(null), 1500);
+     } else {
+       // On error, clear the state immediately
+       setReviewingNodeId(null);
+     }
+   };
 
   return (
     // Full viewport height, no page-level scroll
@@ -308,29 +317,39 @@ export default function Archive() {
             </div>
 
             {/* ── ANKI FOOTER — pinned to bottom ── */}
-            <div className="shrink-0 flex items-center justify-center gap-0 border-t border-white/[0.06] bg-black/40">
-              <button
-                onClick={() => handleReview(selectedShard.ID, 'HARD')}
-                className="flex-1 py-4 text-[10px] font-black tracking-[0.35em] uppercase border-r border-white/[0.05] text-red-500 hover:bg-red-500/[0.06] transition-all duration-200"
-                style={{ textShadow: '0 0 10px rgba(239,68,68,0.5)' }}
-              >
-                [ HARD ]
-              </button>
-              <button
-                onClick={() => handleReview(selectedShard.ID, 'GOOD')}
-                className="flex-1 py-4 text-[10px] font-black tracking-[0.35em] uppercase border-r border-white/[0.05] text-yellow-400 hover:bg-yellow-400/[0.06] transition-all duration-200"
-                style={{ textShadow: '0 0 10px rgba(234,179,8,0.5)' }}
-              >
-                [ GOOD ]
-              </button>
-              <button
-                onClick={() => handleReview(selectedShard.ID, 'EASY')}
-                className="flex-1 py-4 text-[10px] font-black tracking-[0.35em] uppercase text-cyan-400 hover:bg-cyan-400/[0.06] transition-all duration-200"
-                style={{ textShadow: '0 0 10px rgba(34,211,238,0.5)' }}
-              >
-                [ EASY ]
-              </button>
-            </div>
+             <div className="shrink-0 flex items-center justify-center gap-0 border-t border-white/[0.06] bg-black/40">
+               {reviewingNodeId === selectedShard?.ID ? (
+                 <div className="flex-1 flex items-center justify-center">
+                   <span className="text-cyan-400 font-mono text-[10px] tracking-[0.35em] uppercase">
+                     [ ✓ NEURAL LINK UPDATED ]
+                   </span>
+                 </div>
+               ) : (
+                 <>
+                   <button
+                     onClick={() => handleReview(selectedShard.ID, 'hard')}
+                     className="flex-1 py-4 text-[10px] font-black tracking-[0.35em] uppercase border-r border-white/[0.05] text-red-500 hover:bg-red-500/[0.06] transition-all duration-200"
+                     style={{ textShadow: '0 0 10px rgba(239,68,68,0.5)' }}
+                   >
+                     [ HARD ]
+                   </button>
+                   <button
+                     onClick={() => handleReview(selectedShard.ID, 'good')}
+                     className="flex-1 py-4 text-[10px] font-black tracking-[0.35em] uppercase border-r border-white/[0.05] text-yellow-400 hover:bg-yellow-400/[0.06] transition-all duration-200"
+                     style={{ textShadow: '0 0 10px rgba(234,179,8,0.5)' }}
+                   >
+                     [ GOOD ]
+                   </button>
+                   <button
+                     onClick={() => handleReview(selectedShard.ID, 'easy')}
+                     className="flex-1 py-4 text-[10px] font-black tracking-[0.35em] uppercase text-cyan-400 hover:bg-cyan-400/[0.06] transition-all duration-200"
+                     style={{ textShadow: '0 0 10px rgba(34,211,238,0.5)' }}
+                   >
+                     [ EASY ]
+                   </button>
+                 </>
+               )}
+             </div>
           </div>
         )}
 

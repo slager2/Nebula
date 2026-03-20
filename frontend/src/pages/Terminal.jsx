@@ -79,7 +79,13 @@ export default function Terminal() {
   };
 
   const routineScore = user?.RoutineScore ?? 0;
-  const heatmap = useMemo(() => generateHeatmapData(routineScore), [routineScore]);
+  const heatmap = useMemo(() => {
+    const mocked = generateHeatmapData(routineScore);
+    // Override last square (index 89, today) with real RoutineScore mapped to 0-3
+    const todayLevel = Math.floor((routineScore / 100) * 3);
+    mocked[89] = todayLevel;
+    return mocked;
+  }, [routineScore]);
 
   const completedCount = dailyTasks.filter(t => t.IsCompleted).length;
   const totalCount     = dailyTasks.length;

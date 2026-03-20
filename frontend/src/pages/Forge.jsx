@@ -242,6 +242,9 @@ export default function Forge() {
   const [topicInput, setTopicInput] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [genError, setGenError] = useState(null);
+  
+  const syncRate = user?.SyncRate ?? 0;
+  const isLocked = syncRate < 50;
 
   const generateTree = async (e) => {
     e.preventDefault();
@@ -274,11 +277,19 @@ export default function Forge() {
     setActiveNode(node);
   };
 
-  // Sync Rate display
-  const syncRate = user?.SyncRate ?? 0;
-
   return (
-    <div className="h-screen flex overflow-hidden">
+    <div className="h-screen flex overflow-hidden relative">
+      {/* Lock Overlay */}
+      {isLocked && (
+        <div className="absolute inset-0 bg-red-950/60 backdrop-blur-sm flex flex-col items-center justify-center z-50 pointer-events-auto">
+          <p className="text-2xl font-black text-red-400 tracking-[0.2em] mb-4 uppercase">
+            [!] UPLINK SEVERED
+          </p>
+          <p className="text-red-500/80 font-mono text-[10px] tracking-[0.35em] uppercase max-w-xs text-center">
+            SYNC RATE CRITICAL<br />COMPLETE DAILY ROUTINES TO RESTORE
+          </p>
+        </div>
+      )}
       {/* Graph Area */}
       <div className="flex-1 relative overflow-hidden">
         {constellationId ? (
@@ -311,7 +322,7 @@ export default function Forge() {
             />
             <button
               type="submit"
-              disabled={isGenerating}
+              disabled={isGenerating || !topicInput.trim() || isLocked}
               className="mt-2 w-full bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 rounded-lg py-2.5 text-xs uppercase tracking-wider font-bold transition-all disabled:opacity-50"
             >
               {isGenerating ? 'GENERATING...' : 'INITIALIZE'}
@@ -323,10 +334,10 @@ export default function Forge() {
             <div className="mb-4 p-2.5 rounded-lg text-xs font-mono" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171' }}>
               ⚠ {genError}
             </div>
-          )}
+           )}
 
-          {/* Sync Rate Display */}
-          <div className="flex items-center justify-between p-3 rounded-lg bg-white/[0.03] border border-white/5 mb-4">
+           {/* Sync Rate Display */}
+           <div className="flex items-center justify-between p-3 rounded-lg bg-white/[0.03] border border-white/5 mb-4">
             <span className="text-xs text-slate-400">Sync Rate</span>
             <span
               className="text-lg font-black font-mono"

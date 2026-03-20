@@ -289,7 +289,7 @@ func GetArchive(c *fiber.Ctx) error {
 		if err := database.DB.Where("constellation_id = ? AND is_unlocked = ?", c.ID, true).Find(&unlockedNodes).Error; err != nil {
 			unlockedNodes = []models.StarNode{} // fallback
 		}
-		
+
 		result = append(result, ArchiveData{
 			Constellation: c,
 			Nodes:         unlockedNodes,
@@ -297,4 +297,34 @@ func GetArchive(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(result)
+}
+
+// ReviewNode handles POST /api/v1/nodes/:id/review
+// Payload: {"quality": "hard"|"good"|"easy"}
+// Returns: {node, user} or error
+func ReviewNode(c *fiber.Ctx) error {
+	type Request struct {
+		Quality string `json:"quality"`
+	}
+	var req Request
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid request payload"})
+	}
+
+	nodeID, err := strconv.ParseUint(c.Params("id"), 10, 32)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid node ID"})
+	}
+
+	userID := uint(1) // MVP single-user mode
+
+	node, user, statusCode, svcErr := services.ReviewNode(database.DB, uint(nodeID), userID, strings.ToLower(req.Quality))
+	if svcErr != nil {
+		return c.Status(statusCode).JSON(fiber.Map{"error": svcErr.Error()})
+	}
+
+	return c.JSON(fiber.Map{
+		"node": node,
+		"user": user,
+	})
 }

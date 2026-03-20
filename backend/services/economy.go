@@ -151,3 +151,96 @@ func VerifyNode(db *gorm.DB, nodeID uint, userID uint, shard string) (*models.St
 
 	return &node, &user, statusCode, err
 }
+
+// ReviewNode handles spaced repetition review logic for knowledge shards.
+// quality must be "hard", "good", or "easy".
+// Returns: updated node, updated user, HTTP status code, error.
+func ReviewNode(db *gorm.DB, nodeID uint, userID uint, quality string) (*models.StarNode, *models.User, int, error) {
+	var user models.User
+	var node models.StarNode
+	var statusCode int
+
+	// Validate quality parameter
+	if quality != "hard" && quality != "good" && quality != "easy" {
+		return nil, nil, 400, errors.New("invalid quality value: must be hard, good, or easy")
+	}
+
+	err := db.Transaction(func(tx *gorm.DB) error {
+		// Fetch and lock user row for update
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&user, userID).Error; err != nil {
+			statusCode = 404
+			return err
+		}
+
+		// Fetch the node
+		if err := tx.First(&node, nodeID).Error; err != nil {
+			statusCode = 404
+			return err
+		}
+
+		// Verify node is unlocked (can only review unlocked nodes)
+		if !node.IsUnlocked {
+			statusCode = 403
+			return errors.New("node is not unlocked and cannot be reviewed")
+		}
+
+		// Verify ownership: node's constellation must belong to the user
+		var constellation models.Constellation
+		if err := tx.First(&constellation, node.ConstellationID).Error; err != nil {
+			statusCode = 404
+			return err
+		}
+		if constellation.UserID != userID {
+			statusCode = 403
+			return errors.New("unauthorized: user does not own this node")
+		}
+
+		now := time.Now()
+
+		// Apply spacing intervals based on quality and ReviewCount
+		// SM-2 variant: "hard" = short review, "good"/"easy" = longer intervals
+		switch quality {
+		case "hard":
+			// Hard: 10 minute re-review, do NOT increment ReviewCount
+			nextReview := now.Add(10 * time.Minute)
+			node.NextReviewAt = &nextReview
+			// ReviewCount stays the same
+
+		case "good":
+			// Good: increment ReviewCount, then schedule (ReviewCount * 2) days
+			node.ReviewCount++
+			nextReview := now.AddDate(0, 0, node.ReviewCount*2)
+			node.NextReviewAt = &nextReview
+
+		case "easy":
+			// Easy: increment ReviewCount, then schedule (ReviewCount * 4) days
+			node.ReviewCount++
+			// Cap ReviewCount at 30 to prevent excessive spacing intervals
+			if node.ReviewCount > 30 {
+				node.ReviewCount = 30
+			}
+			nextReview := now.AddDate(0, 0, node.ReviewCount*4)
+			node.NextReviewAt = &nextReview
+		}
+
+		// Cognitive Boost: +5 to CognitiveScore, hard-capped at 100
+		user.CognitiveScore = math.Min(100.0, user.CognitiveScore+5.0)
+
+		// Recalculate SyncRate: (RoutineScore + CognitiveScore) / 2
+		user.SyncRate = (user.RoutineScore + user.CognitiveScore) / 2.0
+
+		// Persist changes to database
+		if err := tx.Save(&user).Error; err != nil {
+			statusCode = 500
+			return err
+		}
+		if err := tx.Save(&node).Error; err != nil {
+			statusCode = 500
+			return err
+		}
+
+		return nil
+	})
+
+	return &node, &user, statusCode, err
+}

@@ -11,9 +11,27 @@ const navItems = [
 ];
 
 function getSyncState(rate) {
-  if (rate >= 80) return { color: '#22d3ee', label: 'OPTIMAL', borderColor: 'rgba(34,211,238,0.25)', glowColor: 'rgba(34,211,238,0.15)' };
-  if (rate >= 50) return { color: '#a78bfa', label: 'NOMINAL', borderColor: 'rgba(167,139,250,0.2)', glowColor: 'rgba(167,139,250,0.1)' };
-  return { color: '#f87171', label: 'CRITICAL', borderColor: 'rgba(248,113,113,0.3)', glowColor: 'rgba(248,113,113,0.15)' };
+  if (rate >= 80) return { 
+    color: '#22d3ee', 
+    label: 'OPTIMAL', 
+    borderColor: 'rgba(34,211,238,0.25)', 
+    glowColor: 'rgba(34,211,238,0.15)',
+    flicker: false 
+  };
+  if (rate >= 50) return { 
+    color: '#a78bfa', 
+    label: 'NOMINAL', 
+    borderColor: 'rgba(167,139,250,0.2)', 
+    glowColor: 'rgba(167,139,250,0.1)',
+    flicker: false 
+  };
+  return { 
+    color: '#f87171', 
+    label: 'CRITICAL', 
+    borderColor: 'rgba(248,113,113,0.3)', 
+    glowColor: 'rgba(248,113,113,0.15)',
+    flicker: true 
+  };
 }
 
 export default function GlobalLayout() {
@@ -113,15 +131,15 @@ export default function GlobalLayout() {
               }}
             />
           </div>
-          <div className="flex items-center justify-between mt-1.5">
-            <p className="text-[10px] text-slate-600 font-mono">SYNC RATE</p>
-            <p
-              className="text-sm font-black font-mono"
-              style={{ color: syncState.color, textShadow: `0 0 8px ${syncState.glowColor}` }}
-            >
-              {syncRate.toFixed(0)}%
-            </p>
-          </div>
+           <div className="flex items-center justify-between mt-1.5">
+             <p className="text-[10px] text-slate-600 font-mono">SYNC RATE</p>
+             <p
+               className={`text-sm font-black font-mono ${syncRate < 50 ? 'animate-flicker' : ''}`}
+               style={{ color: syncState.color, textShadow: `0 0 8px ${syncState.glowColor}` }}
+             >
+               {syncRate.toFixed(0)}%
+             </p>
+           </div>
 
           {/* Entropy warning pulse for low sync */}
           {syncRate < 50 && (

@@ -77,10 +77,12 @@ export default function Profile() {
     );
   }
 
-  const syncRate = user.SyncRate ?? 0;
-  const routineScore = user.RoutineScore ?? 0;
-  const cognitiveScore = user.CognitiveScore ?? 0;
-  const syncColor = getSyncColor(syncRate);
+   const syncRate = user.SyncRate ?? 0;
+   const routineScore = user.RoutineScore ?? 0;
+   const cognitiveScore = user.CognitiveScore ?? 0;
+   const syncColor = getSyncColor(syncRate);
+   const accentColor = syncRate < 50 ? '#f87171' : '#06b6d4';
+   const accentGlow = syncRate < 50 ? 'rgba(248,113,113,0.6)' : 'rgba(6,182,212,0.8)';
 
   const currentHeight = parseFloat(height || user.Height) || 0;
   const currentWeight = parseFloat(weight || user.Weight) || 0;
@@ -134,14 +136,14 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* Right Column: Holographic Twin */}
-        <div className="lg:col-span-3 bg-[#050510]/95 backdrop-blur-xl border border-cyan-500/20 rounded-2xl p-6 flex flex-col relative overflow-hidden" 
-             style={{ boxShadow: 'inset 0 0 80px rgba(6,182,212,0.05)' }}>
-          
-          {/* Neon grid background */}
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(6,182,212,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.04)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none" />
-          
-          <h3 className="text-xs font-bold tracking-[0.2em] text-cyan-500/70 uppercase mb-2 relative z-10">Holographic Twin</h3>
+         {/* Right Column: Holographic Twin */}
+         <div className="lg:col-span-3 bg-[#050510]/95 backdrop-blur-xl border-cyan-500/20 rounded-2xl p-6 flex flex-col relative overflow-hidden" 
+              style={{ boxShadow: 'inset 0 0 80px rgba(6,182,212,0.05)', borderColor: syncRate < 50 ? 'rgba(248,113,113,0.2)' : 'rgba(6,182,212,0.2)' }}>
+           
+           {/* Neon grid background */}
+           <div className="absolute inset-0 bg-[linear-gradient(rgba(6,182,212,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.04)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none" style={{ backgroundImage: syncRate < 50 ? 'linear-gradient(rgba(248,113,113,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(248,113,113,0.04)_1px,transparent_1px)' : 'linear-gradient(rgba(6,182,212,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.04)_1px,transparent_1px)' }} />
+           
+           <h3 className="text-xs font-bold tracking-[0.2em] text-cyan-500/70 uppercase mb-2 relative z-10">Holographic Twin</h3>
 
           <div className="flex-1 flex items-center justify-center relative z-10 w-full h-full min-h-[400px]">
             {/* Height Input (Top Left) */}
@@ -180,50 +182,50 @@ export default function Profile() {
             </div>
 
             {/* Abstract Humanoid SVG */}
-            <svg viewBox="0 0 200 400" className="w-[180px] h-[360px] drop-shadow-[0_0_25px_rgba(6,182,212,0.35)] pointer-events-none">
-              <g stroke="#06b6d4" strokeWidth="1.5" fill="none" opacity="0.6">
-                {/* Scanner line going down */}
-                <line x1="-50" y1="0" x2="250" y2="0" stroke="#06b6d4" strokeWidth="2" opacity="0.8">
-                  <animate attributeName="y1" values="-20;420;-20" dur="4s" repeatCount="indefinite" />
-                  <animate attributeName="y2" values="-20;420;-20" dur="4s" repeatCount="indefinite" />
-                </line>
+             <svg viewBox="0 0 200 400" className="w-[180px] h-[360px] drop-shadow-[0_0_25px_rgba(6,182,212,0.35)] pointer-events-none" style={{ filter: syncRate < 50 ? 'drop-shadow(0 0 25px rgba(248,113,113,0.35))' : 'drop-shadow(0 0 25px rgba(6,182,212,0.35))' }}>
+               <g stroke={accentColor} strokeWidth="1.5" fill="none" opacity="0.6">
+                 {/* Scanner line going down */}
+                 <line x1="-50" y1="0" x2="250" y2="0" stroke={accentColor} strokeWidth="2" opacity="0.8">
+                   <animate attributeName="y1" values="-20;420;-20" dur="4s" repeatCount="indefinite" />
+                   <animate attributeName="y2" values="-20;420;-20" dur="4s" repeatCount="indefinite" />
+                 </line>
 
-                {/* Head */}
-                <circle cx="100" cy="50" r="22" strokeDasharray="4 4" />
-                <circle cx="100" cy="50" r="14" opacity="0.4" />
-                
-                {/* Core/Spine */}
-                <line x1="100" y1="72" x2="100" y2="210" strokeDasharray="6 4" strokeWidth="2" />
-                
-                {/* Shoulders */}
-                <path d="M 40 100 Q 100 80 160 100" strokeWidth="2" />
-                
-                {/* Arms */}
-                <polyline points="40,100 25,170 20,240" strokeDasharray="5 5" />
-                <polyline points="160,100 175,170 180,240" strokeDasharray="5 5" />
-                
-                {/* Torso/Ribcage */}
-                <path d="M 60 110 Q 40 160 100 210 Q 160 160 140 110" />
-                <path d="M 70 125 Q 55 160 100 190 Q 145 160 130 125" opacity="0.5" />
-                
-                {/* Pelvis */}
-                <path d="M 70 210 Q 100 230 130 210" strokeWidth="2" />
-                
-                {/* Legs */}
-                <polyline points="70,210 60,300 60,380" strokeDasharray="5 5" />
-                <polyline points="130,210 140,300 140,380" strokeDasharray="5 5" />
-                
-                {/* Joints / Nodes */}
-                <circle cx="40" cy="100" r="4" fill="#06b6d4" />
-                <circle cx="160" cy="100" r="4" fill="#06b6d4" />
-                <circle cx="25" cy="170" r="3" fill="#06b6d4" />
-                <circle cx="175" cy="170" r="3" fill="#06b6d4" />
-                <circle cx="70" cy="210" r="4" fill="#06b6d4" />
-                <circle cx="130" cy="210" r="4" fill="#06b6d4" />
-                <circle cx="60" cy="300" r="3" fill="#06b6d4" />
-                <circle cx="140" cy="300" r="3" fill="#06b6d4" />
-              </g>
-            </svg>
+                 {/* Head */}
+                 <circle cx="100" cy="50" r="22" strokeDasharray="4 4" />
+                 <circle cx="100" cy="50" r="14" opacity="0.4" />
+                 
+                 {/* Core/Spine */}
+                 <line x1="100" y1="72" x2="100" y2="210" strokeDasharray="6 4" strokeWidth="2" />
+                 
+                 {/* Shoulders */}
+                 <path d="M 40 100 Q 100 80 160 100" strokeWidth="2" />
+                 
+                 {/* Arms */}
+                 <polyline points="40,100 25,170 20,240" strokeDasharray="5 5" />
+                 <polyline points="160,100 175,170 180,240" strokeDasharray="5 5" />
+                 
+                 {/* Torso/Ribcage */}
+                 <path d="M 60 110 Q 40 160 100 210 Q 160 160 140 110" />
+                 <path d="M 70 125 Q 55 160 100 190 Q 145 160 130 125" opacity="0.5" />
+                 
+                 {/* Pelvis */}
+                 <path d="M 70 210 Q 100 230 130 210" strokeWidth="2" />
+                 
+                 {/* Legs */}
+                 <polyline points="70,210 60,300 60,380" strokeDasharray="5 5" />
+                 <polyline points="130,210 140,300 140,380" strokeDasharray="5 5" />
+                 
+                 {/* Joints / Nodes */}
+                 <circle cx="40" cy="100" r="4" fill={accentColor} />
+                 <circle cx="160" cy="100" r="4" fill={accentColor} />
+                 <circle cx="25" cy="170" r="3" fill={accentColor} />
+                 <circle cx="175" cy="170" r="3" fill={accentColor} />
+                 <circle cx="70" cy="210" r="4" fill={accentColor} />
+                 <circle cx="130" cy="210" r="4" fill={accentColor} />
+                 <circle cx="60" cy="300" r="3" fill={accentColor} />
+                 <circle cx="140" cy="300" r="3" fill={accentColor} />
+               </g>
+             </svg>
           </div>
 
           {/* Sync Button */}

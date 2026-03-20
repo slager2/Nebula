@@ -46,6 +46,7 @@ func main() {
 	api.Post("/constellations/generate", handlers.GenerateConstellation)
 	api.Get("/constellations/:id", handlers.GetConstellation)
 	api.Post("/nodes/:id/verify", handlers.VerifyNode)
+	api.Post("/nodes/:id/review", handlers.ReviewNode)
 
 	// Econ/Routine endpoints
 	api.Get("/dailies", handlers.GetDailies)

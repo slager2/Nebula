@@ -138,9 +138,42 @@ const useStore = create((set, get) => ({
       console.error('Failed to verify node', e);
       return { ok: false };
     }
-  },
+   },
 
-  archiveData: [],
+   reviewNode: async (nodeId, quality) => {
+     try {
+       const res = await fetch(`${API}/nodes/${nodeId}/review`, {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({ quality }),
+       });
+       const data = await res.json();
+       if (res.ok) {
+         set({ user: data.user });
+         // Update the specific node's review metadata in archiveData
+         const archiveData = get().archiveData;
+         const updatedArchive = archiveData.map(c => ({
+           ...c,
+           nodes: c.nodes.map(n =>
+             n.ID === nodeId 
+               ? { 
+                   ...n, 
+                   NextReviewAt: data.node.NextReviewAt, 
+                   ReviewCount: data.node.ReviewCount 
+                 } 
+               : n
+           ),
+         }));
+         set({ archiveData: updatedArchive });
+       }
+       return { ok: res.ok, data };
+     } catch (e) {
+       console.error('Failed to review node', e);
+       return { ok: false };
+     }
+   },
+
+   archiveData: [],
   fetchArchive: async () => {
     try {
       const res = await fetch(`${API}/archive`);
