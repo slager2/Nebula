@@ -7,18 +7,20 @@ import (
 )
 
 type User struct {
-	ID             uint    `gorm:"primaryKey"`
-	Username       string  `gorm:"uniqueIndex"`
-	SyncRate       float64 `gorm:"default:0"`
-	RoutineScore   float64 `gorm:"default:0"`
-	CognitiveScore float64 `gorm:"default:0"`
-	Height         float32 // Real-life metric
-	Weight         float32 // Real-life metric
-	StatINT        int     `gorm:"default:10"`
-	StatSTR        int     `gorm:"default:10"`
-	StatAGI        int     `gorm:"default:10"`
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	ID              uint       `gorm:"primaryKey"`
+	Username        string     `gorm:"uniqueIndex"`
+	SyncRate        float64    `gorm:"default:0"`
+	RoutineScore    float64    `gorm:"default:0"`
+	CognitiveScore  float64    `gorm:"default:0"`
+	Height          float32    // Real-life metric
+	Weight          float32    // Real-life metric
+	StatINT         int        `gorm:"default:10"`
+	StatSTR         int        `gorm:"default:10"`
+	StatAGI         int        `gorm:"default:10"`
+	ComboMultiplier float64    `gorm:"default:1.0"` // Combo tracker: 1.0 + (consecutive_days * 0.2)
+	ComboExpireAt   *time.Time // When combo resets if daily not completed
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }
 
 type Constellation struct {
@@ -60,24 +62,24 @@ func (a AIPayload) Value() (driver.Value, error) {
 }
 
 type StarNode struct {
-	ID              uint      `gorm:"primaryKey"`
-	ConstellationID uint      `gorm:"index"`
-	ParentNodeID    *uint     `gorm:"index"`
+	ID              uint  `gorm:"primaryKey"`
+	ConstellationID uint  `gorm:"index"`
+	ParentNodeID    *uint `gorm:"index"`
 	Title           string
 	Description     string
 	Codex           AIPayload `gorm:"type:jsonb;default:'{}'"`
-	KnowledgeShard  string     `gorm:"type:text"` // User's own summary
-	IsUnlocked      bool       `gorm:"default:false"`
-	ReviewCount     int        `gorm:"default:0"`
+	KnowledgeShard  string    `gorm:"type:text"` // User's own summary
+	IsUnlocked      bool      `gorm:"default:false"`
+	ReviewCount     int       `gorm:"default:0"`
 	NextReviewAt    *time.Time
 }
 
 type DailyTask struct {
-	ID          uint   `gorm:"primaryKey"`
-	UserID      uint   `gorm:"index"`
+	ID          uint `gorm:"primaryKey"`
+	UserID      uint `gorm:"index"`
 	Title       string
-	Type        string     `gorm:"type:varchar(10)"` // "INT", "STR", "AGI"
-	Streak      int        `gorm:"default:0"`
-	IsCompleted bool       `gorm:"default:false"` // Resets at midnight via cron/job
+	Type        string `gorm:"type:varchar(10)"` // "INT", "STR", "AGI"
+	Streak      int    `gorm:"default:0"`
+	IsCompleted bool   `gorm:"default:false"` // Resets at midnight via cron/job
 	LastDoneAt  *time.Time
 }

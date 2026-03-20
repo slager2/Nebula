@@ -173,6 +173,28 @@ const useStore = create((set, get) => ({
      }
    },
 
+   deleteConstellation: async (constellationId) => {
+     try {
+       const res = await fetch(`${API}/constellations/${constellationId}`, {
+         method: 'DELETE',
+         headers: { 'Content-Type': 'application/json' },
+       });
+       const data = await res.json();
+       if (res.ok) {
+         // Refetch archive to update UI
+         const archiveRes = await fetch(`${API}/archive`);
+         const archiveData = await archiveRes.json();
+         if (Array.isArray(archiveData)) {
+           set({ archiveData });
+         }
+       }
+       return { ok: res.ok, data };
+     } catch (e) {
+       console.error('Failed to delete constellation', e);
+       return { ok: false };
+     }
+   },
+
    archiveData: [],
   fetchArchive: async () => {
     try {

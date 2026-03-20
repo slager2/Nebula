@@ -69,6 +69,16 @@ func CompleteDaily(db *gorm.DB, taskID uint) (*models.User, *models.DailyTask, e
 
 		// HARD CLAMP: RoutineScore never exceeds 100
 		user.RoutineScore = math.Min(100.0, score)
+
+		// Combo multiplier logic: if combo expired, reset to 1.0; otherwise apply it
+		if user.ComboExpireAt != nil && time.Now().After(*user.ComboExpireAt) {
+			user.ComboMultiplier = 1.0
+			user.ComboExpireAt = nil
+		}
+		// Apply combo multiplier to RoutineScore
+		user.RoutineScore = user.RoutineScore * user.ComboMultiplier
+		user.RoutineScore = math.Min(100.0, user.RoutineScore) // Ensure hard clamp after multiplier
+
 		user.SyncRate = (user.RoutineScore + user.CognitiveScore) / 2.0
 
 		if err := tx.Save(&user).Error; err != nil {
@@ -116,16 +126,20 @@ func VerifyNode(db *gorm.DB, nodeID uint, userID uint, shard string) (*models.St
 			return errors.New("node already verified")
 		}
 
-		// Parent check
+		// Parent chain check: verify entire unlock chain is satisfied
 		if node.ParentNodeID != nil {
-			var parent models.StarNode
-			if err := tx.First(&parent, *node.ParentNodeID).Error; err != nil {
-				statusCode = 404
-				return err
-			}
-			if !parent.IsUnlocked {
-				statusCode = 403
-				return errors.New("parent skill must be verified first")
+			currentNodeID := node.ParentNodeID
+			for currentNodeID != nil {
+				var parent models.StarNode
+				if err := tx.First(&parent, *currentNodeID).Error; err != nil {
+					statusCode = 404
+					return err
+				}
+				if !parent.IsUnlocked {
+					statusCode = 403
+					return errors.New("parent skill chain not fully verified")
+				}
+				currentNodeID = parent.ParentNodeID
 			}
 		}
 
@@ -243,4 +257,46 @@ func ReviewNode(db *gorm.DB, nodeID uint, userID uint, quality string) (*models.
 	})
 
 	return &node, &user, statusCode, err
+}
+
+// DeleteConstellation removes a constellation and all its nodes if authorized.
+func DeleteConstellation(db *gorm.DB, constellationID uint, userID uint) (int, error) {
+	var constellation models.Constellation
+
+	err := db.Transaction(func(tx *gorm.DB) error {
+		// Fetch constellation
+		if err := tx.First(&constellation, constellationID).Error; err != nil {
+			return err
+		}
+
+		// Verify ownership
+		if constellation.UserID != userID {
+			return errors.New("unauthorized: user does not own this constellation")
+		}
+
+		// Delete all nodes associated with this constellation
+		if err := tx.Where("constellation_id = ?", constellationID).Delete(&models.StarNode{}).Error; err != nil {
+			return err
+		}
+
+		// Delete the constellation itself
+		if err := tx.Delete(&constellation).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	statusCode := 200
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			statusCode = 404
+		} else if err.Error() == "unauthorized: user does not own this constellation" {
+			statusCode = 403
+		} else {
+			statusCode = 500
+		}
+	}
+
+	return statusCode, err
 }

@@ -328,3 +328,23 @@ func ReviewNode(c *fiber.Ctx) error {
 		"user": user,
 	})
 }
+
+// DeleteConstellation handles DELETE /api/v1/constellations/:id
+// Deletes constellation and all associated nodes
+func DeleteConstellation(c *fiber.Ctx) error {
+	constellationID, err := strconv.ParseUint(c.Params("id"), 10, 32)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid constellation ID"})
+	}
+
+	userID := uint(1) // MVP single-user mode
+
+	statusCode, svcErr := services.DeleteConstellation(database.DB, uint(constellationID), userID)
+	if svcErr != nil {
+		return c.Status(statusCode).JSON(fiber.Map{"error": svcErr.Error()})
+	}
+
+	return c.Status(statusCode).JSON(fiber.Map{
+		"message": "Constellation deleted successfully",
+	})
+}

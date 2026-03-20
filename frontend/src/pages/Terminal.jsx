@@ -78,7 +78,9 @@ export default function Terminal() {
     setDeleting(null);
   };
 
-  const routineScore = user?.RoutineScore ?? 0;
+   const routineScore = user?.RoutineScore ?? 0;
+   const comboMultiplier = user?.ComboMultiplier ?? 1.0;
+   const hasCombo = comboMultiplier > 1.0;
   const heatmap = useMemo(() => {
     const mocked = generateHeatmapData(routineScore);
     // Override last square (index 89, today) with real RoutineScore mapped to 0-3
@@ -106,17 +108,30 @@ export default function Terminal() {
               SYSTEM TELEMETRY // 90-DAY ROUTINE STABILITY
             </span>
           </div>
-          <div className="flex items-center gap-6">
-            <span className="text-[10px] text-slate-600 tracking-widest uppercase">
-              OPS {completedCount}/{totalCount}
-            </span>
-            <span
-              className="text-lg font-black text-cyan-400 tabular-nums"
-              style={{ textShadow: '0 0 12px rgba(34,211,238,0.6)' }}
-            >
-              {routineScore.toFixed(1)}%
-            </span>
-          </div>
+           <div className="flex items-center gap-6">
+             <span className="text-[10px] text-slate-600 tracking-widest uppercase">
+               OPS {completedCount}/{totalCount}
+             </span>
+             {hasCombo && (
+               <div className="flex items-center gap-2">
+                 <span
+                   className="text-lg font-black text-amber-400 tabular-nums animate-pulse"
+                   style={{ textShadow: '0 0 12px rgba(251,191,36,0.6)' }}
+                 >
+                   {comboMultiplier.toFixed(1)}x
+                 </span>
+                 <span className="text-[8px] text-amber-600 tracking-[0.15em] font-black uppercase">
+                   COMBO
+                 </span>
+               </div>
+             )}
+             <span
+               className="text-lg font-black text-cyan-400 tabular-nums"
+               style={{ textShadow: '0 0 12px rgba(34,211,238,0.6)' }}
+             >
+               {routineScore.toFixed(1)}%
+             </span>
+           </div>
         </div>
 
         {/* Heatmap grid */}

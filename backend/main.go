@@ -45,6 +45,7 @@ func main() {
 	// AI Generative Tree endpoints
 	api.Post("/constellations/generate", handlers.GenerateConstellation)
 	api.Get("/constellations/:id", handlers.GetConstellation)
+	api.Delete("/constellations/:id", handlers.DeleteConstellation)
 	api.Post("/nodes/:id/verify", handlers.VerifyNode)
 	api.Post("/nodes/:id/review", handlers.ReviewNode)
 

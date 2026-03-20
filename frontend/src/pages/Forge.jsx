@@ -4,9 +4,11 @@ import CosmicTree from '../CosmicTree';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
-function NodeInspector({ node, user, onClose }) {
+function NodeInspector({ node, user, constellationId, onClose, onConstellationDeleted }) {
   const verifyNode = useStore((s) => s.verifyNode);
+  const deleteConstellation = useStore((s) => s.deleteConstellation);
   const [verifying, setVerifying] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
 
   // localStorage draft persistence — load saved draft for this node
@@ -57,25 +59,52 @@ function NodeInspector({ node, user, onClose }) {
       setKnowledgeShard('');
     } else {
       setErrorMsg(result.data?.error || 'Verification failed.');
-    }
-  };
+   }
+   };
 
-  const charCount = knowledgeShard.trim().length;
+   const handleDelete = async () => {
+     if (!window.confirm('Delete this entire constellation and all its nodes? This cannot be undone.')) {
+       return;
+     }
+     setDeleting(true);
+     const result = await deleteConstellation(constellationId);
+     setDeleting(false);
+     if (result.ok) {
+       onConstellationDeleted?.();
+       onClose();
+     } else {
+       setErrorMsg(result.data?.error || 'Deletion failed.');
+     }
+   };
+
+   const charCount = knowledgeShard.trim().length;
 
   return (
     <div className="w-96 bg-black/70 backdrop-blur-xl border-l border-cyan-500/10 flex flex-col shrink-0 relative overflow-hidden">
       {/* Neon edge glow */}
       <div className="absolute left-0 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-cyan-500/40 to-transparent" />
 
-      {/* Close */}
-      <button
-        onClick={onClose}
-        className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors z-10"
-      >
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </button>
+       {/* Close */}
+       <button
+         onClick={onClose}
+         className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors z-10"
+       >
+         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+           <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+         </svg>
+       </button>
+
+       {/* Delete Constellation Button */}
+       <button
+         onClick={handleDelete}
+         disabled={deleting}
+         className="absolute top-4 right-12 text-slate-500 hover:text-red-400 transition-colors z-10 disabled:opacity-50"
+         title="Delete constellation"
+       >
+         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+           <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+         </svg>
+       </button>
 
       {/* Header */}
       <div className="p-5 pb-4 border-b border-white/5 shrink-0">
@@ -307,7 +336,9 @@ export default function Forge() {
         <NodeInspector
           node={activeNode}
           user={user}
+          constellationId={constellationId}
           onClose={() => setActiveNode(null)}
+          onConstellationDeleted={() => setConstellationId(null)}
         />
       ) : (
         <div className="w-72 bg-black/40 backdrop-blur-md border-l border-white/5 flex flex-col p-5 shrink-0 overflow-hidden">
