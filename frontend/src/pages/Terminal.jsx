@@ -7,7 +7,6 @@ const TASK_TYPE_STYLES = {
   AGI: { color: 'text-lime-400', borderColor: 'border-lime-500/50', glowColor: 'rgba(163,230,53,0.35)', label: 'AGI' },
 };
 
-// Seeded pseudo-random number generator (mulberry32) for deterministic heatmap
 function mulberry32(seed) {
   return function () {
     seed |= 0; seed = seed + 0x6D2B79F5 | 0;
@@ -17,12 +16,10 @@ function mulberry32(seed) {
   };
 }
 
-// Generate 90-day deterministic activity data (0=missed, 1=low, 2=med, 3=high)
 function generateHeatmapData(routineScore) {
   const rand = mulberry32(42 + Math.floor(routineScore));
   return Array.from({ length: 90 }, (_, i) => {
     const r = rand();
-    // Bias toward higher activity as index increases (more recent = better)
     const bias = i / 90;
     const raw = r + bias * 0.4;
     if (raw < 0.25) return 0;
@@ -33,10 +30,10 @@ function generateHeatmapData(routineScore) {
 }
 
 const HEAT_COLORS = [
-  'bg-slate-800',                                        // 0 — missed
-  'bg-cyan-900',                                         // 1 — low
-  'bg-cyan-600',                                         // 2 — medium
-  'bg-cyan-400',                                         // 3 — high
+  'bg-slate-800',
+  'bg-cyan-900',
+  'bg-cyan-600',
+  'bg-cyan-400',
 ];
 
 const HEAT_GLOWS = [
@@ -78,12 +75,11 @@ export default function Terminal() {
     setDeleting(null);
   };
 
-   const routineScore = user?.RoutineScore ?? 0;
-   const comboMultiplier = user?.ComboMultiplier ?? 1.0;
-   const hasCombo = comboMultiplier > 1.0;
+  const routineScore = user?.RoutineScore ?? 0;
+  const comboMultiplier = user?.ComboMultiplier ?? 1.0;
+  const hasCombo = comboMultiplier > 1.0;
   const heatmap = useMemo(() => {
     const mocked = generateHeatmapData(routineScore);
-    // Override last square (index 89, today) with real RoutineScore mapped to 0-3
     const todayLevel = Math.floor((routineScore / 100) * 3);
     mocked[89] = todayLevel;
     return mocked;
@@ -95,9 +91,7 @@ export default function Terminal() {
   return (
     <div className="h-full flex flex-col font-mono text-sm overflow-hidden bg-[#050510]">
 
-      {/* ── TOP: SYSTEM TELEMETRY HEATMAP ─────────────────────────────── */}
       <div className="shrink-0 border-b border-white/5" style={{ background: 'rgba(5,5,16,0.95)' }}>
-        {/* Header bar */}
         <div className="flex items-center justify-between px-6 pt-4 pb-3 border-b border-white/[0.04]">
           <div className="flex items-center gap-3">
             <span
@@ -108,63 +102,59 @@ export default function Terminal() {
               SYSTEM TELEMETRY // 90-DAY ROUTINE STABILITY
             </span>
           </div>
-           <div className="flex items-center gap-6">
-             <span className="text-[10px] text-slate-600 tracking-widest uppercase">
-               OPS {completedCount}/{totalCount}
-             </span>
-              {hasCombo && (
-                <div className="flex items-center gap-2">
-                  <span
-                    className="text-lg font-black text-amber-400 tabular-nums animate-pulse"
-                    style={{ textShadow: '0 0 16px rgba(251,191,36,0.7)' }}
-                  >
-                    {comboMultiplier.toFixed(1)}x
-                  </span>
-                  <span className="text-[8px] text-amber-600 tracking-[0.15em] font-black uppercase">
-                    COMBO
-                  </span>
-                </div>
-              )}
-             <span
-               className="text-lg font-black text-cyan-400 tabular-nums"
-               style={{ textShadow: '0 0 12px rgba(34,211,238,0.6)' }}
-             >
-               {routineScore.toFixed(1)}%
-             </span>
-           </div>
+          <div className="flex items-center gap-6">
+            <span className="text-[10px] text-slate-600 tracking-widest uppercase">
+              OPS {completedCount}/{totalCount}
+            </span>
+            {hasCombo && (
+              <div className="flex items-center gap-2">
+                <span
+                  className="text-lg font-black text-amber-400 tabular-nums animate-pulse"
+                  style={{ textShadow: '0 0 16px rgba(251,191,36,0.7)' }}
+                >
+                  {comboMultiplier.toFixed(1)}x
+                </span>
+                <span className="text-[8px] text-amber-600 tracking-[0.15em] font-black uppercase">
+                  COMBO
+                </span>
+              </div>
+            )}
+            <span
+              className="text-lg font-black text-cyan-400 tabular-nums"
+              style={{ textShadow: '0 0 12px rgba(34,211,238,0.6)' }}
+            >
+              {routineScore.toFixed(1)}%
+            </span>
+          </div>
         </div>
 
-         {/* Heatmap grid */}
-         <div className="px-6 py-4">
-            {/* Legend */}
-             <div className="flex items-center justify-center gap-4 mb-4">
-               <span className="text-[9px] text-slate-600 tracking-widest uppercase font-semibold">LESS</span>
-               {HEAT_COLORS.map((cls, i) => (
-                 <div
-                   key={i}
-                   className={`w-4 h-4 rounded-sm transition-all duration-150 hover:scale-125 cursor-default ${cls}`}
-                   style={{ boxShadow: HEAT_GLOWS[i] }}
-                 />
-               ))}
-               <span className="text-[9px] text-slate-600 tracking-widest uppercase font-semibold">MORE</span>
-             </div>
+        <div className="px-6 py-4">
+          <div className="flex items-center justify-center gap-4 mb-4">
+            <span className="text-[9px] text-slate-600 tracking-widest uppercase font-semibold">LESS</span>
+            {HEAT_COLORS.map((cls, i) => (
+              <div
+                key={i}
+                className={`w-4 h-4 rounded-sm transition-transform hover:scale-125 ${cls}`}
+                style={{ boxShadow: HEAT_GLOWS[i] }}
+              />
+            ))}
+            <span className="text-[9px] text-slate-600 tracking-widest uppercase font-semibold">MORE</span>
+          </div>
 
-             {/* 90 cells — 13 columns × 7 rows */}
-             <div
-               className="grid gap-[2px]"
-               style={{ gridTemplateColumns: 'repeat(13, minmax(0, 1fr))', gridTemplateRows: 'repeat(7, minmax(0, 1fr))' }}
-             >
-               {heatmap.map((level, i) => (
-                 <div
-                   key={i}
-                   className={`w-4 h-4 rounded-sm transition-all duration-200 cursor-default hover:scale-125 ${HEAT_COLORS[level]}`}
-                   style={{ boxShadow: HEAT_GLOWS[level] }}
-                   title={`Day -${90 - i}: Activity ${level}`}
-                 />
-               ))}
-             </div>
+          <div
+            className="grid gap-[2px]"
+            style={{ gridTemplateColumns: 'repeat(13, minmax(0, 1fr))', gridTemplateRows: 'repeat(7, minmax(0, 1fr))' }}
+          >
+            {heatmap.map((level, i) => (
+              <div
+                key={i}
+                className={`w-4 h-4 rounded-sm transition-all duration-200 cursor-default hover:scale-125 ${HEAT_COLORS[level]}`}
+                style={{ boxShadow: HEAT_GLOWS[level] }}
+                title={`Day -${90 - i}: Activity ${level}`}
+              />
+            ))}
+          </div>
 
-          {/* X-axis labels */}
           <div className="flex justify-between mt-2 px-[1px]">
             {['90D', '78D', '65D', '52D', '39D', '26D', '13D', 'NOW'].map(label => (
               <span key={label} className="text-[8px] text-slate-700 tracking-wider font-mono">{label}</span>
@@ -173,13 +163,11 @@ export default function Terminal() {
         </div>
       </div>
 
-      {/* ── MIDDLE: CLI INPUT ────────────────────────────────────────────── */}
       <form
         onSubmit={handleCreate}
         className="shrink-0 flex items-center gap-0 border-b border-white/5"
         style={{ background: 'rgba(0,0,0,0.6)' }}
       >
-        {/* Prompt glyph */}
         <span
           className="pl-6 pr-3 text-cyan-400 font-black text-base select-none"
           style={{ textShadow: '0 0 10px rgba(34,211,238,0.8)' }}
@@ -187,7 +175,6 @@ export default function Terminal() {
           &gt;
         </span>
 
-        {/* Input */}
         <input
           type="text"
           value={title}
@@ -198,7 +185,6 @@ export default function Terminal() {
           autoComplete="off"
         />
 
-        {/* Type toggles */}
         <div className="flex items-center gap-px px-4">
           {Object.entries(TASK_TYPE_STYLES).map(([key, s]) => {
             const isActive = type === key;
@@ -220,7 +206,6 @@ export default function Terminal() {
           })}
         </div>
 
-        {/* Execute button */}
         <button
           type="submit"
           disabled={creating || !title.trim()}
@@ -231,9 +216,7 @@ export default function Terminal() {
         </button>
       </form>
 
-      {/* ── BOTTOM: EXECUTION LOG ────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Log header */}
         <div className="shrink-0 flex items-center justify-between px-6 py-2 border-b border-white/[0.04] bg-black/30 select-none pointer-events-none">
           <span className="text-[9px] text-slate-600 tracking-[0.35em] uppercase font-bold">
             EXECUTION LOG // OUTSTANDING OPERATIONS
@@ -243,7 +226,6 @@ export default function Terminal() {
           </span>
         </div>
 
-        {/* Log rows */}
         <div className="flex-1 overflow-y-auto hidden-scrollbar">
           {dailyTasks.length === 0 && (
             <div className="flex items-center justify-center h-32">
@@ -259,38 +241,35 @@ export default function Terminal() {
             const streak  = String(task.Streak || 0).padStart(2, '0');
 
             return (
-                <div
-                  key={task.ID}
-                  className={`group flex items-center gap-4 px-6 py-2 border-b border-white/[0.04] transition-all duration-150 ${
-                    isDone ? 'opacity-40' : 'hover:bg-white/[0.21] hover:shadow-[inset_0_0_20px_rgba(34,211,238,0.08)]'
+              <div
+                key={task.ID}
+                className={`group flex items-center gap-4 px-6 py-2 border-b border-white/[0.04] transition-all duration-150 ${
+                  isDone ? 'opacity-40' : 'hover:bg-white/[0.21] hover:shadow-[inset_0_0_20px_rgba(34,211,238,0.08)]'
+                }`}
+              >
+                <button
+                  onClick={() => handleComplete(task)}
+                  disabled={isDone || completing === task.ID}
+                  className={`shrink-0 w-5 h-5 border rounded transition-all duration-150 flex items-center justify-center ${
+                    isDone
+                      ? 'bg-cyan-400 border-cyan-400 shadow-[inset_0_0_6px_rgba(34,211,238,0.5)]'
+                      : 'bg-transparent border-slate-600 hover:border-cyan-500 hover:shadow-[0_0_10px_rgba(34,211,238,0.7)]'
                   }`}
                 >
-                 {/* Checkbox */}
-                 <button
-                   onClick={() => handleComplete(task)}
-                   disabled={isDone || completing === task.ID}
-                   className={`shrink-0 w-5 h-5 border rounded transition-all duration-150 flex items-center justify-center ${
-                     isDone
-                       ? 'bg-cyan-400 border-cyan-400 shadow-[inset_0_0_6px_rgba(34,211,238,0.5)]'
-                       : 'bg-transparent border-slate-600 hover:border-cyan-500 hover:shadow-[0_0_10px_rgba(34,211,238,0.7)]'
-                   }`}
-                 >
-                   {isDone && (
-                     <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                       <path d="M1 4l2 2 4-4" stroke="#050510" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                     </svg>
-                   )}
-                 </button>
+                  {isDone && (
+                    <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                      <path d="M1 4l2 2 4-4" stroke="#050510" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  )}
+                </button>
 
-                 {/* Type badge */}
-                 <span
-                   className={`shrink-0 text-[9px] font-black tracking-[0.25em] w-8 ${style.color}`}
-                   style={{ textShadow: isDone ? 'none' : `0 0 8px ${style.glowColor}` }}
-                 >
-                   {task.Type}
-                 </span>
+                <span
+                  className={`shrink-0 text-[9px] font-black tracking-[0.25em] w-8 ${style.color}`}
+                  style={{ textShadow: isDone ? 'none' : `0 0 8px ${style.glowColor}` }}
+                >
+                  {task.Type}
+                </span>
 
-                {/* Task title */}
                 <span
                   className={`flex-1 truncate text-xs tracking-wider ${
                     isDone ? 'line-through text-slate-600' : 'text-slate-400'
@@ -299,30 +278,27 @@ export default function Terminal() {
                   {task.Title}
                 </span>
 
-                  {/* Streak */}
-                  <span
-                    className={`shrink-0 text-[10px] font-black tracking-widest tabular-nums ${
-                      isDone ? 'text-slate-600' : 'text-amber-400 animate-pulse'
-                    }`}
-                    style={{ textShadow: isDone ? 'none' : '0 0 12px rgba(251,191,36,0.8)' }}
-                  >
-                    🔥 STREAK: {streak}
-                  </span>
+                <span
+                  className={`shrink-0 text-[10px] font-black tracking-widest tabular-nums ${
+                    isDone ? 'text-slate-600' : 'text-amber-400'
+                  }`}
+                  style={{ textShadow: isDone ? 'none' : '0 0 12px rgba(251,191,36,0.8)' }}
+                >
+                  🔥 STREAK: {streak}
+                </span>
 
-                 {/* Delete */}
-                 <button
-                   onClick={() => handleDelete(task.ID)}
-                   disabled={deleting === task.ID}
-                   className="shrink-0 opacity-0 group-hover:opacity-100 text-[9px] text-red-500/40 hover:text-red-500 hover:shadow-[0_0_8px_rgba(239,68,68,0.5)] tracking-widest transition-all font-mono duration-100"
-                 >
-                   [DEL]
-                 </button>
+                <button
+                  onClick={() => handleDelete(task.ID)}
+                  disabled={deleting === task.ID}
+                  className="shrink-0 opacity-0 group-hover:opacity-100 text-[9px] text-red-500/40 hover:text-red-500 hover:shadow-[0_0_8px_rgba(239,68,68,0.5)] tracking-widest transition-all font-mono duration-100"
+                >
+                  [DEL]
+                </button>
               </div>
             );
           })}
         </div>
 
-        {/* Log footer */}
         <div className="shrink-0 flex items-center gap-6 px-6 py-2 border-t border-white/[0.04] bg-black/20 select-none pointer-events-none">
           <span className="text-[9px] text-slate-700 font-mono tracking-widest">
             INT: {user?.StatINT ?? 10}

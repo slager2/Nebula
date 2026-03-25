@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import useStore from '../store/useStore';
 
-// Pending review count helper
 function getPendingCount(archiveData) {
   const now = new Date();
   let count = 0;
@@ -16,24 +15,22 @@ function getPendingCount(archiveData) {
 }
 
 export default function Archive() {
-   const archiveData  = useStore((s) => s.archiveData);
-   const fetchArchive = useStore((s) => s.fetchArchive);
-   const reviewNode   = useStore((s) => s.reviewNode);
+  const archiveData  = useStore((s) => s.archiveData);
+  const fetchArchive = useStore((s) => s.fetchArchive);
+  const reviewNode   = useStore((s) => s.reviewNode);
 
-   const [selectedConstellationId, setSelectedConstellationId] = useState(null);
-   const [selectedShardId, setSelectedShardId]                 = useState(null);
-   const [reviewingNodeId, setReviewingNodeId]                 = useState(null);
+  const [selectedConstellationId, setSelectedConstellationId] = useState(null);
+  const [selectedShardId, setSelectedShardId]                 = useState(null);
+  const [reviewingNodeId, setReviewingNodeId]                 = useState(null);
 
   useEffect(() => { fetchArchive(); }, [fetchArchive]);
 
-  // Auto-select first constellation once data arrives
   useEffect(() => {
     if (archiveData.length > 0 && !selectedConstellationId) {
       setSelectedConstellationId(archiveData[0].ID);
     }
   }, [archiveData, selectedConstellationId]);
 
-  // Clear shard selection when constellation changes
   const handleSelectConstellation = (id) => {
     setSelectedConstellationId(id);
     setSelectedShardId(null);
@@ -44,40 +41,31 @@ export default function Archive() {
   const selectedShard         = shards.find(n => n.ID === selectedShardId);
   const pendingCount          = getPendingCount(archiveData);
 
-   const handleReview = async (nodeId, quality) => {
-     setReviewingNodeId(nodeId);
-     const result = await reviewNode(nodeId, quality);
-     if (result.ok) {
-       // Show success message for 1.5s, then hide buttons
-       setTimeout(() => setReviewingNodeId(null), 1500);
-     } else {
-       // On error, clear the state immediately
-       setReviewingNodeId(null);
-     }
-   };
+  const handleReview = async (nodeId, quality) => {
+    setReviewingNodeId(nodeId);
+    const result = await reviewNode(nodeId, quality);
+    if (result.ok) {
+      setTimeout(() => setReviewingNodeId(null), 1500);
+    } else {
+      setReviewingNodeId(null);
+    }
+  };
 
   return (
-    // Full viewport height, no page-level scroll
     <div className="h-full flex overflow-hidden font-sans bg-[#050510]">
 
-      {/* ══════════════════════════════════════════════════════════════
-          COL 1 — CONSTELLATIONS (20%)
-      ══════════════════════════════════════════════════════════════ */}
       <div className="w-[20%] min-w-[180px] flex flex-col border-r border-white/[0.06] overflow-hidden">
-        {/* Column header */}
         <div className="shrink-0 px-4 pt-5 pb-3 border-b border-white/[0.04]">
           <span className="text-[9px] font-black tracking-[0.35em] text-slate-500 uppercase font-mono">
             CONSTELLATIONS
           </span>
         </div>
 
-        {/* SYNAPTIC ALERT */}
         <div className="shrink-0 mx-3 my-3">
           <div
             className="relative overflow-hidden border border-red-500/30 p-3 rounded-lg backdrop-blur-xl"
             style={{ background: 'rgba(239,68,68,0.04)', boxShadow: '0 0 20px rgba(239,68,68,0.08) inset' }}
           >
-            {/* Left pulse bar */}
             <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-red-500 animate-pulse" />
             <div className="pl-2">
               <div className="flex items-center gap-1.5 mb-1">
@@ -100,7 +88,6 @@ export default function Archive() {
           </div>
         </div>
 
-        {/* Constellation list */}
         <div className="flex-1 overflow-y-auto hidden-scrollbar px-3 pb-4 flex flex-col gap-0.5">
           {archiveData.length === 0 && (
             <div className="p-3 border border-dashed border-white/10 text-center mt-2 rounded">
@@ -137,11 +124,7 @@ export default function Archive() {
         </div>
       </div>
 
-      {/* ══════════════════════════════════════════════════════════════
-          COL 2 — SHARD LIST (30%)
-      ══════════════════════════════════════════════════════════════ */}
       <div className="w-[30%] min-w-[200px] flex flex-col border-r border-white/[0.06] overflow-hidden">
-        {/* Column header */}
         <div className="shrink-0 px-4 pt-5 pb-3 border-b border-white/[0.04] flex items-center justify-between">
           <span className="text-[9px] font-black tracking-[0.35em] text-slate-500 uppercase font-mono">
             DATA SHARDS
@@ -153,7 +136,6 @@ export default function Archive() {
           )}
         </div>
 
-        {/* Shard list */}
         <div className="flex-1 overflow-y-auto hidden-scrollbar flex flex-col">
           {!selectedConstellationId && (
             <div className="flex items-center justify-center flex-1">
@@ -201,15 +183,10 @@ export default function Archive() {
         </div>
       </div>
 
-      {/* ══════════════════════════════════════════════════════════════
-          COL 3 — THE READER (flex-1, ~50%)
-      ══════════════════════════════════════════════════════════════ */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
-        {/* ── NO SHARD SELECTED: empty state ── */}
         {!selectedShard && (
           <div className="flex-1 flex flex-col items-center justify-center gap-4 select-none">
-            {/* Animated orbit rings */}
             <div className="relative w-20 h-20 flex items-center justify-center">
               <div
                 className="absolute inset-0 rounded-full border border-dashed border-cyan-500/10 animate-[spin_20s_linear_infinite]"
@@ -228,18 +205,14 @@ export default function Archive() {
           </div>
         )}
 
-        {/* ── SHARD SELECTED: reader content ── */}
         {selectedShard && (
           <div className="flex-1 flex flex-col overflow-hidden">
-            {/* Reader scrollable area */}
             <div className="flex-1 overflow-y-auto hidden-scrollbar px-8 py-6">
 
-              {/* Topic breadcrumb */}
               <p className="text-[8px] text-slate-600 tracking-[0.4em] uppercase mb-2 font-mono">
                 {selectedConstellation?.Topic} // SHARD X-{String(selectedShard.ID).padStart(3, '0')}
               </p>
 
-              {/* Shard title — cyberpunk header */}
               <h1
                 className="text-3xl font-black uppercase tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-cyan-300 to-purple-400 mb-6 leading-tight font-sans"
                 style={{ filter: 'drop-shadow(0 0 20px rgba(34,211,238,0.3))' }}
@@ -247,7 +220,6 @@ export default function Archive() {
                 {selectedShard.Title}
               </h1>
 
-              {/* AI Overview */}
               <div className="mb-6">
                 <span className="text-[9px] text-slate-600 tracking-[0.35em] uppercase font-black block mb-2 font-mono">
                   AI OVERVIEW
@@ -257,7 +229,6 @@ export default function Archive() {
                 </p>
               </div>
 
-              {/* Key Concepts — neon pill-tags */}
               {selectedShard.Codex?.key_concepts?.length > 0 && (
                 <div className="mb-6">
                   <span className="text-[9px] text-slate-600 tracking-[0.35em] uppercase font-black block mb-2 font-mono">
@@ -280,7 +251,6 @@ export default function Archive() {
                 </div>
               )}
 
-              {/* The Codex Block — user's knowledge shard */}
               <div className="mb-6">
                 <span className="text-[9px] text-slate-600 tracking-[0.35em] uppercase font-black block mb-2 font-mono">
                   KNOWLEDGE SHARD // OPERATOR SYNTHESIS
@@ -301,7 +271,6 @@ export default function Archive() {
                 </blockquote>
               </div>
 
-              {/* Practical task (bonus — if available) */}
               {selectedShard.Codex?.practical_task && (
                 <div className="mb-2">
                   <span className="text-[9px] text-slate-600 tracking-[0.35em] uppercase font-black block mb-2 font-mono">
@@ -318,7 +287,6 @@ export default function Archive() {
 
             </div>
 
-            {/* ── ANKI FOOTER — pinned to bottom ── */}
             <div className="shrink-0 flex items-center justify-center gap-0 border-t border-white/[0.06] bg-black/40">
               {reviewingNodeId === selectedShard?.ID ? (
                 <div className="flex-1 flex items-center justify-center">
@@ -330,19 +298,19 @@ export default function Archive() {
                 <>
                   <button
                     onClick={() => handleReview(selectedShard.ID, 'hard')}
-                    className="flex-1 py-4 text-[10px] font-black tracking-[0.35em] uppercase border-r border-white/[0.05] text-red-400 bg-red-500/10 border-red-500/50 hover:bg-red-500/20 transition-all duration-200 font-mono"
+                    className="flex-1 py-4 text-[10px] font-black tracking-[0.35em] uppercase border-r border-white/[0.05] text-red-400 bg-red-500/10 border border-red-500/50 hover:bg-red-500/20 transition-all duration-200 font-mono"
                   >
                     [ HARD ]
                   </button>
                   <button
                     onClick={() => handleReview(selectedShard.ID, 'good')}
-                    className="flex-1 py-4 text-[10px] font-black tracking-[0.35em] uppercase border-r border-white/[0.05] text-yellow-400 bg-yellow-500/10 border-yellow-500/50 hover:bg-yellow-500/20 transition-all duration-200 font-mono"
+                    className="flex-1 py-4 text-[10px] font-black tracking-[0.35em] uppercase border-r border-white/[0.05] text-yellow-400 bg-yellow-500/10 border border-yellow-500/50 hover:bg-yellow-500/20 transition-all duration-200 font-mono"
                   >
                     [ GOOD ]
                   </button>
                   <button
                     onClick={() => handleReview(selectedShard.ID, 'easy')}
-                    className="flex-1 py-4 text-[10px] font-black tracking-[0.35em] uppercase text-cyan-400 bg-cyan-500/10 border-cyan-500/50 hover:bg-cyan-500/20 transition-all duration-200 font-mono"
+                    className="flex-1 py-4 text-[10px] font-black tracking-[0.35em] uppercase text-cyan-400 bg-cyan-500/10 border border-cyan-500/50 hover:bg-cyan-500/20 transition-all duration-200 font-mono"
                   >
                     [ EASY ]
                   </button>
