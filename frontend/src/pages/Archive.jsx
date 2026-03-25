@@ -58,7 +58,7 @@ export default function Archive() {
 
   return (
     // Full viewport height, no page-level scroll
-    <div className="h-full flex overflow-hidden font-mono bg-[#050510]">
+    <div className="h-full flex overflow-hidden font-sans bg-[#050510]">
 
       {/* ══════════════════════════════════════════════════════════════
           COL 1 — CONSTELLATIONS (20%)
@@ -66,7 +66,7 @@ export default function Archive() {
       <div className="w-[20%] min-w-[180px] flex flex-col border-r border-white/[0.06] overflow-hidden">
         {/* Column header */}
         <div className="shrink-0 px-4 pt-5 pb-3 border-b border-white/[0.04]">
-          <span className="text-[9px] font-black tracking-[0.35em] text-slate-500 uppercase">
+          <span className="text-[9px] font-black tracking-[0.35em] text-slate-500 uppercase font-mono">
             CONSTELLATIONS
           </span>
         </div>
@@ -74,7 +74,7 @@ export default function Archive() {
         {/* SYNAPTIC ALERT */}
         <div className="shrink-0 mx-3 my-3">
           <div
-            className="relative overflow-hidden border border-red-500/30 p-3"
+            className="relative overflow-hidden border border-red-500/30 p-3 rounded-lg backdrop-blur-xl"
             style={{ background: 'rgba(239,68,68,0.04)', boxShadow: '0 0 20px rgba(239,68,68,0.08) inset' }}
           >
             {/* Left pulse bar */}
@@ -85,15 +85,15 @@ export default function Archive() {
                   className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping"
                   style={{ boxShadow: '0 0 6px rgba(239,68,68,1)' }}
                 />
-                <span className="text-[8px] font-black tracking-[0.3em] text-red-500 uppercase">
+                <span className="text-[8px] font-black tracking-[0.3em] text-red-500 uppercase font-mono">
                   SYNAPTIC ALERT
                 </span>
               </div>
               <p className="text-xl font-black text-white tabular-nums">
                 {pendingCount}
-                <span className="text-[9px] text-red-400/70 tracking-widest ml-1.5 uppercase">PENDING</span>
+                <span className="text-[9px] text-red-400/70 tracking-widest ml-1.5 uppercase font-mono">PENDING</span>
               </p>
-              <p className="text-[8px] text-red-500/50 uppercase tracking-wider mt-0.5">
+              <p className="text-[8px] text-red-500/50 uppercase tracking-wider mt-0.5 font-mono">
                 Entropy risk detected
               </p>
             </div>
@@ -103,8 +103,8 @@ export default function Archive() {
         {/* Constellation list */}
         <div className="flex-1 overflow-y-auto hidden-scrollbar px-3 pb-4 flex flex-col gap-0.5">
           {archiveData.length === 0 && (
-            <div className="p-3 border border-dashed border-white/10 text-center mt-2">
-              <span className="text-[9px] text-slate-600 uppercase tracking-widest">
+            <div className="p-3 border border-dashed border-white/10 text-center mt-2 rounded">
+              <span className="text-[9px] text-slate-600 uppercase tracking-widest font-mono">
                 NO DATA
               </span>
             </div>
@@ -115,7 +115,7 @@ export default function Archive() {
               <button
                 key={c.ID}
                 onClick={() => handleSelectConstellation(c.ID)}
-                className={`w-full text-left px-3 py-2.5 border-l-2 transition-all duration-200 ${
+                className={`w-full text-left px-3 py-2.5 border-l-2 transition-all duration-200 rounded ${
                   isActive
                     ? 'border-l-cyan-400 bg-cyan-500/[0.07] text-cyan-300'
                     : 'border-l-transparent text-slate-500 hover:text-slate-300 hover:bg-white/[0.03] hover:border-l-slate-600'
@@ -123,12 +123,12 @@ export default function Archive() {
                 style={isActive ? { boxShadow: 'inset 0 0 20px rgba(34,211,238,0.04)' } : {}}
               >
                 <p
-                  className="text-[10px] font-black uppercase tracking-wider truncate"
+                  className="text-[10px] font-black uppercase tracking-wider truncate font-sans"
                   style={isActive ? { textShadow: '0 0 8px rgba(34,211,238,0.5)' } : {}}
                 >
                   {c.Topic}
                 </p>
-                <p className="text-[8px] text-slate-600 mt-0.5 tracking-widest">
+                <p className="text-[8px] text-slate-600 mt-0.5 tracking-widest font-mono">
                   {(c.nodes?.length || 0)} SHARDS
                 </p>
               </button>
@@ -138,16 +138,16 @@ export default function Archive() {
       </div>
 
       {/* ══════════════════════════════════════════════════════════════
-          COL 2 — SHARD LIST (25%)
+          COL 2 — SHARD LIST (30%)
       ══════════════════════════════════════════════════════════════ */}
-      <div className="w-[25%] min-w-[200px] flex flex-col border-r border-white/[0.06] overflow-hidden">
+      <div className="w-[30%] min-w-[200px] flex flex-col border-r border-white/[0.06] overflow-hidden">
         {/* Column header */}
         <div className="shrink-0 px-4 pt-5 pb-3 border-b border-white/[0.04] flex items-center justify-between">
-          <span className="text-[9px] font-black tracking-[0.35em] text-slate-500 uppercase">
+          <span className="text-[9px] font-black tracking-[0.35em] text-slate-500 uppercase font-mono">
             DATA SHARDS
           </span>
           {selectedConstellation && (
-            <span className="text-[8px] text-slate-700 tracking-wider truncate max-w-[50%] text-right">
+            <span className="text-[8px] text-slate-700 tracking-wider truncate max-w-[50%] text-right font-mono">
               {selectedConstellation.Topic}
             </span>
           )}
@@ -157,7 +157,7 @@ export default function Archive() {
         <div className="flex-1 overflow-y-auto hidden-scrollbar flex flex-col">
           {!selectedConstellationId && (
             <div className="flex items-center justify-center flex-1">
-              <span className="text-[9px] text-slate-700 tracking-[0.3em] uppercase px-4 text-center">
+              <span className="text-[9px] text-slate-700 tracking-[0.3em] uppercase px-4 text-center font-mono">
                 SELECT CONSTELLATION
               </span>
             </div>
@@ -165,7 +165,7 @@ export default function Archive() {
 
           {selectedConstellationId && shards.length === 0 && (
             <div className="flex items-center justify-center flex-1">
-              <span className="text-[9px] text-slate-700 tracking-[0.3em] uppercase px-4 text-center">
+              <span className="text-[9px] text-slate-700 tracking-[0.3em] uppercase px-4 text-center font-mono">
                 NO VERIFIED SHARDS
               </span>
             </div>
@@ -177,18 +177,18 @@ export default function Archive() {
               <button
                 key={node.ID}
                 onClick={() => setSelectedShardId(node.ID)}
-                className={`w-full text-left px-4 py-3 border-b border-white/[0.04] border-l-2 transition-all duration-150 ${
+                className={`w-full text-left px-4 py-3 border-b border-white/[0.04] border-l-2 transition-all duration-150 rounded ${
                   isActive
                     ? 'border-l-cyan-400 bg-cyan-500/[0.07] text-cyan-300'
                     : 'border-l-transparent text-slate-500 hover:bg-white/[0.03] hover:text-slate-300 hover:border-l-slate-700'
                 }`}
-                style={isActive ? { boxShadow: 'inset 0 0 20px rgba(34,211,238,0.04)' } : {}}
+                style={isActive ? { boxShadow: 'inset 0 0 20px rgba(34,211,238,0.04), 0 0 12px rgba(34,211,238,0.15)' } : {}}
               >
                 <p className="text-[8px] text-slate-600 tracking-widest mb-0.5 font-mono">
                   SHARD X-{String(node.ID).padStart(3, '0')}
                 </p>
                 <p
-                  className={`text-[10px] font-bold uppercase tracking-wider truncate ${
+                  className={`text-[10px] font-bold uppercase tracking-wider truncate font-sans ${
                     isActive ? 'text-cyan-300' : 'text-slate-400'
                   }`}
                   style={isActive ? { textShadow: '0 0 8px rgba(34,211,238,0.4)' } : {}}
@@ -202,7 +202,7 @@ export default function Archive() {
       </div>
 
       {/* ══════════════════════════════════════════════════════════════
-          COL 3 — THE READER (flex-1, ~55%)
+          COL 3 — THE READER (flex-1, ~50%)
       ══════════════════════════════════════════════════════════════ */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
@@ -222,7 +222,7 @@ export default function Archive() {
                 style={{ boxShadow: '0 0 12px rgba(34,211,238,0.4)' }}
               />
             </div>
-            <p className="text-[10px] text-slate-600 tracking-[0.4em] uppercase text-center max-w-[300px] leading-loose">
+            <p className="text-[10px] text-slate-600 tracking-[0.4em] uppercase text-center max-w-[300px] leading-loose font-mono">
               SELECT DATA SHARD TO INITIATE<br />READING PROTOCOL
             </p>
           </div>
@@ -241,7 +241,7 @@ export default function Archive() {
 
               {/* Shard title — cyberpunk header */}
               <h1
-                className="text-2xl font-black uppercase tracking-[0.15em] text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-cyan-300 to-purple-400 mb-6 leading-tight"
+                className="text-3xl font-black uppercase tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-cyan-300 to-purple-400 mb-6 leading-tight font-sans"
                 style={{ filter: 'drop-shadow(0 0 20px rgba(34,211,238,0.3))' }}
               >
                 {selectedShard.Title}
@@ -249,10 +249,10 @@ export default function Archive() {
 
               {/* AI Overview */}
               <div className="mb-6">
-                <span className="text-[9px] text-slate-600 tracking-[0.35em] uppercase font-black block mb-2">
+                <span className="text-[9px] text-slate-600 tracking-[0.35em] uppercase font-black block mb-2 font-mono">
                   AI OVERVIEW
                 </span>
-                <p className="text-xs text-slate-400 leading-relaxed tracking-wide">
+                <p className="text-sm text-slate-300 leading-relaxed tracking-normal font-sans">
                   {selectedShard.Codex?.overview || '// NO AI OVERVIEW AVAILABLE'}
                 </p>
               </div>
@@ -260,14 +260,14 @@ export default function Archive() {
               {/* Key Concepts — neon pill-tags */}
               {selectedShard.Codex?.key_concepts?.length > 0 && (
                 <div className="mb-6">
-                  <span className="text-[9px] text-slate-600 tracking-[0.35em] uppercase font-black block mb-2">
+                  <span className="text-[9px] text-slate-600 tracking-[0.35em] uppercase font-black block mb-2 font-mono">
                     KEY CONCEPTS
                   </span>
                   <div className="flex flex-wrap gap-2">
                     {selectedShard.Codex.key_concepts.map((concept, i) => (
                       <span
                         key={i}
-                        className="text-[9px] text-cyan-400 border border-cyan-500/30 px-2.5 py-1 tracking-wider uppercase"
+                        className="text-[9px] text-cyan-400 border border-cyan-500/30 px-2.5 py-1 tracking-wider uppercase rounded font-mono"
                         style={{
                           background: 'rgba(34,211,238,0.04)',
                           boxShadow: '0 0 8px rgba(34,211,238,0.08) inset',
@@ -282,18 +282,20 @@ export default function Archive() {
 
               {/* The Codex Block — user's knowledge shard */}
               <div className="mb-6">
-                <span className="text-[9px] text-slate-600 tracking-[0.35em] uppercase font-black block mb-2">
+                <span className="text-[9px] text-slate-600 tracking-[0.35em] uppercase font-black block mb-2 font-mono">
                   KNOWLEDGE SHARD // OPERATOR SYNTHESIS
                 </span>
                 <blockquote
-                  className="border-l-4 border-cyan-500 pl-6 py-4 pr-4 leading-relaxed text-sm text-slate-300"
+                  className="border-l-4 border-cyan-500 pl-6 py-6 pr-6 leading-relaxed text-sm text-slate-300 rounded-r-lg font-sans"
                   style={{
-                    background: 'rgba(15,23,42,0.5)',
-                    borderLeftColor: '#22d3ee',
-                    boxShadow: 'inset 0 0 30px rgba(34,211,238,0.03)',
+                    background: 'rgba(11,12,16,0.8)',
+                    borderLeftColor: '#06b6d4',
+                    boxShadow: '0 0 30px rgba(34,211,238,0.08)',
+                    backdropFilter: 'blur(12px)',
+                    border: '1px solid rgba(255,255,255,0.05)',
                   }}
                 >
-                  <p className="whitespace-pre-wrap font-mono text-[12px] leading-loose tracking-wide">
+                  <p className="whitespace-pre-wrap font-sans text-sm leading-relaxed tracking-normal text-slate-300">
                     {selectedShard.KnowledgeShard || '// EMPTY SHARD DATA — NO SYNTHESIS RECORDED'}
                   </p>
                 </blockquote>
@@ -302,11 +304,11 @@ export default function Archive() {
               {/* Practical task (bonus — if available) */}
               {selectedShard.Codex?.practical_task && (
                 <div className="mb-2">
-                  <span className="text-[9px] text-slate-600 tracking-[0.35em] uppercase font-black block mb-2">
+                  <span className="text-[9px] text-slate-600 tracking-[0.35em] uppercase font-black block mb-2 font-mono">
                     PRACTICAL DIRECTIVE
                   </span>
                   <div
-                    className="border border-amber-500/20 px-4 py-3 text-xs text-amber-400/70 tracking-wide leading-relaxed font-mono"
+                    className="border border-amber-500/20 px-4 py-3 text-sm text-amber-400/70 tracking-wide leading-relaxed font-sans rounded"
                     style={{ background: 'rgba(245,158,11,0.03)' }}
                   >
                     {selectedShard.Codex.practical_task}
@@ -328,22 +330,19 @@ export default function Archive() {
                  <>
                    <button
                      onClick={() => handleReview(selectedShard.ID, 'hard')}
-                     className="flex-1 py-4 text-[10px] font-black tracking-[0.35em] uppercase border-r border-white/[0.05] text-red-500 hover:bg-red-500/[0.06] transition-all duration-200"
-                     style={{ textShadow: '0 0 10px rgba(239,68,68,0.5)' }}
+                     className="flex-1 py-4 text-[10px] font-black tracking-[0.35em] uppercase border-r border-white/[0.05] text-red-400 bg-red-500/10 border border-red-500/50 hover:bg-red-500/20 transition-all duration-200 font-mono"
                    >
                      [ HARD ]
                    </button>
                    <button
                      onClick={() => handleReview(selectedShard.ID, 'good')}
-                     className="flex-1 py-4 text-[10px] font-black tracking-[0.35em] uppercase border-r border-white/[0.05] text-yellow-400 hover:bg-yellow-400/[0.06] transition-all duration-200"
-                     style={{ textShadow: '0 0 10px rgba(234,179,8,0.5)' }}
+                     className="flex-1 py-4 text-[10px] font-black tracking-[0.35em] uppercase border-r border-white/[0.05] text-yellow-400 bg-yellow-500/10 border border-yellow-500/50 hover:bg-yellow-500/20 transition-all duration-200 font-mono"
                    >
                      [ GOOD ]
                    </button>
                    <button
                      onClick={() => handleReview(selectedShard.ID, 'easy')}
-                     className="flex-1 py-4 text-[10px] font-black tracking-[0.35em] uppercase text-cyan-400 hover:bg-cyan-400/[0.06] transition-all duration-200"
-                     style={{ textShadow: '0 0 10px rgba(34,211,238,0.5)' }}
+                     className="flex-1 py-4 text-[10px] font-black tracking-[0.35em] uppercase text-cyan-400 bg-cyan-500/10 border border-cyan-500/50 hover:bg-cyan-500/20 transition-all duration-200 font-mono"
                    >
                      [ EASY ]
                    </button>

@@ -112,19 +112,19 @@ export default function Terminal() {
              <span className="text-[10px] text-slate-600 tracking-widest uppercase">
                OPS {completedCount}/{totalCount}
              </span>
-             {hasCombo && (
-               <div className="flex items-center gap-2">
-                 <span
-                   className="text-lg font-black text-amber-400 tabular-nums animate-pulse"
-                   style={{ textShadow: '0 0 12px rgba(251,191,36,0.6)' }}
-                 >
-                   {comboMultiplier.toFixed(1)}x
-                 </span>
-                 <span className="text-[8px] text-amber-600 tracking-[0.15em] font-black uppercase">
-                   COMBO
-                 </span>
-               </div>
-             )}
+              {hasCombo && (
+                <div className="flex items-center gap-2">
+                  <span
+                    className="text-lg font-black text-amber-400 tabular-nums animate-pulse"
+                    style={{ textShadow: '0 0 16px rgba(251,191,36,0.7)' }}
+                  >
+                    {comboMultiplier.toFixed(1)}x
+                  </span>
+                  <span className="text-[8px] text-amber-600 tracking-[0.15em] font-black uppercase">
+                    COMBO
+                  </span>
+                </div>
+              )}
              <span
                className="text-lg font-black text-cyan-400 tabular-nums"
                style={{ textShadow: '0 0 12px rgba(34,211,238,0.6)' }}
@@ -136,33 +136,33 @@ export default function Terminal() {
 
         {/* Heatmap grid */}
         <div className="px-6 py-4">
-          {/* Legend */}
-          <div className="flex items-center gap-1.5 mb-3">
-            <span className="text-[9px] text-slate-600 tracking-widest uppercase mr-1">LESS</span>
-            {HEAT_COLORS.map((cls, i) => (
-              <div
-                key={i}
-                className={`w-2.5 h-2.5 rounded-sm ${cls}`}
-                style={{ boxShadow: HEAT_GLOWS[i] }}
-              />
-            ))}
-            <span className="text-[9px] text-slate-600 tracking-widest uppercase ml-1">MORE</span>
-          </div>
+           {/* Legend */}
+           <div className="flex items-center justify-start gap-2 mb-4">
+             <span className="text-[9px] text-slate-600 tracking-widest uppercase font-semibold">LESS</span>
+             {HEAT_COLORS.map((cls, i) => (
+               <div
+                 key={i}
+                 className={`w-3 h-3 rounded-sm transition-transform hover:scale-110 ${cls}`}
+                 style={{ boxShadow: HEAT_GLOWS[i] }}
+               />
+             ))}
+             <span className="text-[9px] text-slate-600 tracking-widest uppercase font-semibold">MORE</span>
+           </div>
 
-          {/* 90 cells — 13 columns × 7 rows */}
-          <div
-            className="grid gap-[3px]"
-            style={{ gridTemplateColumns: 'repeat(13, minmax(0, 1fr))', gridTemplateRows: 'repeat(7, minmax(0, 1fr))' }}
-          >
-            {heatmap.map((level, i) => (
-              <div
-                key={i}
-                className={`w-3 h-3 rounded-sm transition-all duration-200 cursor-default ${HEAT_COLORS[level]}`}
-                style={{ boxShadow: HEAT_GLOWS[level] }}
-                title={`Day -${90 - i}: Activity ${level}`}
-              />
-            ))}
-          </div>
+           {/* 90 cells — 13 columns × 7 rows */}
+           <div
+             className="grid gap-1"
+             style={{ gridTemplateColumns: 'repeat(13, minmax(0, 1fr))', gridTemplateRows: 'repeat(7, minmax(0, 1fr))' }}
+           >
+             {heatmap.map((level, i) => (
+               <div
+                 key={i}
+                 className={`w-4 h-4 rounded-sm transition-all duration-200 cursor-default hover:scale-110 ${HEAT_COLORS[level]}`}
+                 style={{ boxShadow: HEAT_GLOWS[level] }}
+                 title={`Day -${90 - i}: Activity ${level}`}
+               />
+             ))}
+           </div>
 
           {/* X-axis labels */}
           <div className="flex justify-between mt-2 px-[1px]">
@@ -259,12 +259,12 @@ export default function Terminal() {
             const streak  = String(task.Streak || 0).padStart(2, '0');
 
             return (
-              <div
-                key={task.ID}
-                className={`group flex items-center gap-4 px-6 py-2 border-b border-white/[0.04] transition-colors duration-150 ${
-                  isDone ? 'opacity-50' : 'hover:bg-white/[0.015]'
-                }`}
-              >
+               <div
+                 key={task.ID}
+                 className={`group flex items-center gap-4 px-6 py-2 border-b border-white/[0.04] transition-all duration-150 ${
+                   isDone ? 'opacity-50' : 'hover:bg-white/[0.04]'
+                 }`}
+               >
                 {/* Checkbox */}
                 <button
                   onClick={() => handleComplete(task)}
@@ -299,15 +299,15 @@ export default function Terminal() {
                   {task.Title}
                 </span>
 
-                {/* Streak */}
-                <span
-                  className={`shrink-0 text-[10px] font-black tracking-widest tabular-nums ${
-                    isDone ? 'text-slate-600' : 'text-amber-500'
-                  }`}
-                  style={{ textShadow: isDone ? 'none' : '0 0 8px rgba(245,158,11,0.5)' }}
-                >
-                  🔥 STREAK: {streak}
-                </span>
+                 {/* Streak */}
+                 <span
+                   className={`shrink-0 text-[10px] font-black tracking-widest tabular-nums ${
+                     isDone ? 'text-slate-600' : 'text-amber-400'
+                   }`}
+                   style={{ textShadow: isDone ? 'none' : '0 0 10px rgba(251,191,36,0.7)' }}
+                 >
+                   🔥 STREAK: {streak}
+                 </span>
 
                 {/* Delete */}
                 <button

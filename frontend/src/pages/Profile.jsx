@@ -24,7 +24,7 @@ function ProgressRing({ value, max, label, sublabel, color, glowColor, size = 16
             strokeDashoffset={offset}
             strokeLinecap="round"
             className="transition-all duration-700 ease-out"
-            style={{ filter: `drop-shadow(0 0 12px ${glowColor})` }}
+            style={{ filter: `drop-shadow(0 0 16px ${glowColor})` }}
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center flex-col">
@@ -90,14 +90,14 @@ export default function Profile() {
   const bmiState = getBMIState(bmi);
 
   return (
-    <div className="h-full p-8 flex flex-col gap-6 max-w-6xl mx-auto">
+    <div className="h-full p-8 flex flex-col gap-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex items-end justify-between">
         <div>
           <h2 className="text-3xl font-black tracking-tight text-white">
-            DIGITAL <span style={{ color: syncColor }}>TWIN</span>
+            BIOMETRIC <span style={{ color: syncColor }}>ANALYSIS</span>
           </h2>
-          <p className="text-sm text-slate-500 mt-1 uppercase tracking-widest text-[10px]">System synchronization & somatic feedback</p>
+          <p className="text-sm text-slate-500 mt-1 uppercase tracking-widest text-[10px]">Medical Pod Diagnostics & Somatic Telemetry</p>
         </div>
         <div className="text-right">
           <span
@@ -106,24 +106,46 @@ export default function Profile() {
           >
             {syncRate.toFixed(0)}%
           </span>
-          <p className="text-[10px] text-slate-500 font-mono mt-0.5 uppercase tracking-wider">Global Sync Rate</p>
+          <p className="text-[10px] text-slate-500 font-mono mt-0.5 uppercase tracking-wider">System Integrity</p>
         </div>
       </div>
+
+      <style>{`
+        @keyframes scannerPass {
+          0% { transform: translateY(-100%); opacity: 1; }
+          50% { opacity: 1; }
+          100% { transform: translateY(100vh); opacity: 0; }
+        }
+        
+        @keyframes pulseGlow {
+          0%, 100% { opacity: 0.3; }
+          50% { opacity: 0.8; }
+        }
+        
+        .scanner-line {
+          animation: scannerPass 4s ease-in-out infinite;
+        }
+        
+        .pulse-glow {
+          animation: pulseGlow 3s ease-in-out infinite;
+        }
+      `}</style>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 flex-1 min-h-0">
         
         {/* Left Column: Sync Metrics */}
-        <div className="lg:col-span-2 bg-white/[0.03] backdrop-blur-md border border-white/5 rounded-2xl p-6 flex flex-col overflow-y-auto hidden-scrollbar">
-          <h3 className="text-xs font-bold tracking-[0.2em] text-slate-500 uppercase mb-8">Sync Metrics</h3>
+        <div className="lg:col-span-2 bg-[#0B0C10]/80 backdrop-blur-xl border border-white/5 rounded-2xl p-8 flex flex-col overflow-y-auto hidden-scrollbar shadow-2xl">
+          <h3 className="text-xs font-black tracking-[0.2em] text-slate-400 uppercase mb-8">Sync Metrics</h3>
 
-          <div className="flex flex-col items-center justify-center gap-12 flex-1">
+          <div className="flex flex-col items-center justify-center gap-16 flex-1">
             <ProgressRing
               value={routineScore}
               max={100}
               label="ROUTINE"
               sublabel={`${routineScore.toFixed(1)}% STABILITY`}
               color="#06b6d4"
-              glowColor="rgba(6,182,212,0.6)"
+              glowColor="rgba(6,182,212,0.8)"
+              size={140}
             />
             <ProgressRing
               value={cognitiveScore}
@@ -131,118 +153,125 @@ export default function Profile() {
               label="COGNITIVE"
               sublabel={`${cognitiveScore.toFixed(1)}% CAPACITY`}
               color="#8b5cf6"
-              glowColor="rgba(139,92,246,0.6)"
+              glowColor="rgba(139,92,246,0.8)"
+              size={140}
             />
           </div>
         </div>
 
-         {/* Right Column: Holographic Twin */}
-         <div className="lg:col-span-3 bg-[#050510]/95 backdrop-blur-xl border-cyan-500/20 rounded-2xl p-6 flex flex-col relative overflow-hidden" 
-              style={{ boxShadow: 'inset 0 0 80px rgba(6,182,212,0.05)', borderColor: syncRate < 50 ? 'rgba(248,113,113,0.2)' : 'rgba(6,182,212,0.2)' }}>
-           
-           {/* Neon grid background */}
-           <div className="absolute inset-0 bg-[linear-gradient(rgba(6,182,212,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.04)_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none" style={{ backgroundImage: syncRate < 50 ? 'linear-gradient(rgba(248,113,113,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(248,113,113,0.04)_1px,transparent_1px)' : 'linear-gradient(rgba(6,182,212,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.04)_1px,transparent_1px)' }} />
-           
-           <h3 className="text-xs font-bold tracking-[0.2em] text-cyan-500/70 uppercase mb-2 relative z-10">Holographic Twin</h3>
+        {/* Right Column: Medical Pod */}
+        <div className="lg:col-span-3 bg-[#0B0C10]/80 backdrop-blur-xl border border-white/5 rounded-2xl p-8 flex flex-col relative overflow-hidden shadow-2xl"
+             style={{ boxShadow: '0 25px 50px -12px rgba(6,182,212,0.15), inset 0 0 80px rgba(6,182,212,0.08)' }}>
+          
+          {/* Grid Background */}
+          <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(6,182,212,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.1)_1px,transparent_1px)', backgroundSize: '50px 50px' }} />
+          
+          {/* Corner Accents */}
+          <div className="absolute top-0 left-0 w-32 h-32 bg-gradient-to-br from-cyan-500/5 to-transparent pointer-events-none" />
+          <div className="absolute bottom-0 right-0 w-32 h-32 bg-gradient-to-tl from-cyan-500/5 to-transparent pointer-events-none" />
 
-          <div className="flex-1 flex items-center justify-center relative z-10 w-full h-full min-h-[400px]">
-            {/* Height Input (Top Left) */}
-            <div className="absolute top-12 left-8 flex flex-col">
-              <label className="text-[10px] text-cyan-500/60 uppercase tracking-widest font-mono mb-1">Height (cm)</label>
-              <input
-                type="number"
-                placeholder={user.Height || '0'}
-                value={height}
-                onChange={(e) => setHeight(e.target.value)}
-                className="w-24 bg-black/60 text-lg font-mono text-cyan-300 border border-cyan-500/30 rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/50 transition-all text-center placeholder-cyan-900 shadow-[0_0_15px_rgba(6,182,212,0.1)]"
-              />
+          <h3 className="text-xs font-black tracking-[0.2em] text-cyan-400/80 uppercase mb-6 relative z-10">Medical Pod</h3>
+
+          <div className="flex-1 relative z-10 w-full flex flex-col">
+            {/* Top Row: Height and Weight Inputs */}
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              {/* Height Card */}
+              <div className="bg-gradient-to-br from-cyan-500/10 to-transparent border border-cyan-500/30 rounded-xl p-4 backdrop-blur-sm hover:border-cyan-500/50 transition-all"
+                   style={{ boxShadow: '0 0 20px rgba(6,182,212,0.1), inset 0 0 20px rgba(6,182,212,0.05)' }}>
+                <label className="text-[9px] text-cyan-400/70 uppercase tracking-widest font-black mb-2 block">Height</label>
+                <input
+                  type="number"
+                  placeholder={user.Height || '0'}
+                  value={height}
+                  onChange={(e) => setHeight(e.target.value)}
+                  className="w-full bg-black/40 text-2xl font-black font-mono text-cyan-300 border border-cyan-500/20 rounded-lg px-4 py-3 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/60 transition-all text-center placeholder-cyan-900/50 backdrop-blur-sm"
+                  style={{ boxShadow: 'inset 0 0 10px rgba(6,182,212,0.05)' }}
+                />
+                <p className="text-[8px] text-cyan-500/50 uppercase tracking-widest font-mono mt-2">cm</p>
+              </div>
+
+              {/* Weight Card */}
+              <div className="bg-gradient-to-br from-cyan-500/10 to-transparent border border-cyan-500/30 rounded-xl p-4 backdrop-blur-sm hover:border-cyan-500/50 transition-all"
+                   style={{ boxShadow: '0 0 20px rgba(6,182,212,0.1), inset 0 0 20px rgba(6,182,212,0.05)' }}>
+                <label className="text-[9px] text-cyan-400/70 uppercase tracking-widest font-black mb-2 block">Weight</label>
+                <input
+                  type="number"
+                  placeholder={user.Weight || '0'}
+                  value={weight}
+                  onChange={(e) => setWeight(e.target.value)}
+                  className="w-full bg-black/40 text-2xl font-black font-mono text-cyan-300 border border-cyan-500/20 rounded-lg px-4 py-3 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/60 transition-all text-center placeholder-cyan-900/50 backdrop-blur-sm"
+                  style={{ boxShadow: 'inset 0 0 10px rgba(6,182,212,0.05)' }}
+                />
+                <p className="text-[8px] text-cyan-500/50 uppercase tracking-widest font-mono mt-2">kg</p>
+              </div>
             </div>
 
-            {/* Weight Input (Bottom Left) */}
-            <div className="absolute bottom-16 left-8 flex flex-col">
-              <label className="text-[10px] text-cyan-500/60 uppercase tracking-widest font-mono mb-1">Weight (kg)</label>
-              <input
-                type="number"
-                placeholder={user.Weight || '0'}
-                value={weight}
-                onChange={(e) => setWeight(e.target.value)}
-                className="w-24 bg-black/60 text-lg font-mono text-cyan-300 border border-cyan-500/30 rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/50 transition-all text-center placeholder-cyan-900 shadow-[0_0_15px_rgba(6,182,212,0.1)]"
-              />
+            {/* Center: BMI & Biometric Pod */}
+            <div className="relative flex-1 flex items-center justify-center">
+              {/* Animated Scanner Line */}
+              <div className="scanner-line absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent" 
+                   style={{ boxShadow: '0 0 20px rgba(6,182,212,0.8)' }} />
+
+              {/* Main BMI Card */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="relative w-full max-w-xs">
+                  {/* Outer Frame */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-cyan-500/5 rounded-2xl border border-cyan-500/20 backdrop-blur-md"
+                       style={{ boxShadow: '0 0 40px rgba(6,182,212,0.15), inset 0 0 40px rgba(6,182,212,0.08)' }} />
+                  
+                  {/* Inner Content */}
+                  <div className="relative p-8 flex flex-col items-center justify-center">
+                    <p className="text-[10px] text-cyan-400/60 uppercase tracking-[0.3em] font-black mb-4">Body Mass Index</p>
+                    
+                    {/* BMI Value */}
+                    <div className="relative mb-6">
+                      <p className="text-6xl font-black font-mono" style={{ color: bmiState.color, textShadow: `0 0 30px ${bmiState.color}, 0 0 60px ${bmiState.color}40` }}>
+                        {bmi > 0 ? bmi.toFixed(1) : '—'}
+                      </p>
+                    </div>
+
+                    {/* Status Badge */}
+                    <div className="px-4 py-2 rounded-lg border backdrop-blur-sm" style={{ borderColor: `${bmiState.color}50`, backgroundColor: `${bmiState.color}08`, boxShadow: `0 0 20px ${bmiState.color}20` }}>
+                      <p className="text-[10px] tracking-[0.2em] uppercase font-black" style={{ color: bmiState.color }}>
+                        {bmiState.label}
+                      </p>
+                    </div>
+
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-2 gap-4 mt-8 w-full text-center">
+                      <div className="bg-cyan-500/5 border border-cyan-500/20 rounded-lg p-3 backdrop-blur-sm" style={{ boxShadow: 'inset 0 0 10px rgba(6,182,212,0.05)' }}>
+                        <p className="text-cyan-300 text-sm font-black font-mono">{currentHeight > 0 ? currentHeight : '—'}</p>
+                        <p className="text-[8px] text-cyan-500/50 uppercase tracking-wider font-mono mt-1">Height cm</p>
+                      </div>
+                      <div className="bg-cyan-500/5 border border-cyan-500/20 rounded-lg p-3 backdrop-blur-sm" style={{ boxShadow: 'inset 0 0 10px rgba(6,182,212,0.05)' }}>
+                        <p className="text-cyan-300 text-sm font-black font-mono">{currentWeight > 0 ? currentWeight : '—'}</p>
+                        <p className="text-[8px] text-cyan-500/50 uppercase tracking-wider font-mono mt-1">Weight kg</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-
-            {/* BMI Display (Right Center) */}
-            <div className="absolute right-8 top-1/2 -translate-y-1/2 flex flex-col items-end">
-              <p className="text-[10px] text-cyan-500/60 uppercase tracking-widest font-mono mb-2">Mass Index</p>
-              <p className="text-5xl font-black font-mono" style={{ color: bmiState.color, textShadow: `0 0 20px ${bmiState.color}80` }}>
-                {bmi > 0 ? bmi.toFixed(1) : '0.0'}
-              </p>
-              <p className="text-xs tracking-[0.2em] uppercase mt-3 font-bold px-3 py-1.5 bg-black/50 border rounded" style={{ borderColor: `${bmiState.color}40`, color: bmiState.color, boxShadow: `0 0 10px ${bmiState.color}20` }}>
-                {bmiState.label}
-              </p>
-            </div>
-
-            {/* Abstract Humanoid SVG */}
-             <svg viewBox="0 0 200 400" className="w-[180px] h-[360px] drop-shadow-[0_0_25px_rgba(6,182,212,0.35)] pointer-events-none" style={{ filter: syncRate < 50 ? 'drop-shadow(0 0 25px rgba(248,113,113,0.35))' : 'drop-shadow(0 0 25px rgba(6,182,212,0.35))' }}>
-               <g stroke={accentColor} strokeWidth="1.5" fill="none" opacity="0.6">
-                 {/* Scanner line going down */}
-                 <line x1="-50" y1="0" x2="250" y2="0" stroke={accentColor} strokeWidth="2" opacity="0.8">
-                   <animate attributeName="y1" values="-20;420;-20" dur="4s" repeatCount="indefinite" />
-                   <animate attributeName="y2" values="-20;420;-20" dur="4s" repeatCount="indefinite" />
-                 </line>
-
-                 {/* Head */}
-                 <circle cx="100" cy="50" r="22" strokeDasharray="4 4" />
-                 <circle cx="100" cy="50" r="14" opacity="0.4" />
-                 
-                 {/* Core/Spine */}
-                 <line x1="100" y1="72" x2="100" y2="210" strokeDasharray="6 4" strokeWidth="2" />
-                 
-                 {/* Shoulders */}
-                 <path d="M 40 100 Q 100 80 160 100" strokeWidth="2" />
-                 
-                 {/* Arms */}
-                 <polyline points="40,100 25,170 20,240" strokeDasharray="5 5" />
-                 <polyline points="160,100 175,170 180,240" strokeDasharray="5 5" />
-                 
-                 {/* Torso/Ribcage */}
-                 <path d="M 60 110 Q 40 160 100 210 Q 160 160 140 110" />
-                 <path d="M 70 125 Q 55 160 100 190 Q 145 160 130 125" opacity="0.5" />
-                 
-                 {/* Pelvis */}
-                 <path d="M 70 210 Q 100 230 130 210" strokeWidth="2" />
-                 
-                 {/* Legs */}
-                 <polyline points="70,210 60,300 60,380" strokeDasharray="5 5" />
-                 <polyline points="130,210 140,300 140,380" strokeDasharray="5 5" />
-                 
-                 {/* Joints / Nodes */}
-                 <circle cx="40" cy="100" r="4" fill={accentColor} />
-                 <circle cx="160" cy="100" r="4" fill={accentColor} />
-                 <circle cx="25" cy="170" r="3" fill={accentColor} />
-                 <circle cx="175" cy="170" r="3" fill={accentColor} />
-                 <circle cx="70" cy="210" r="4" fill={accentColor} />
-                 <circle cx="130" cy="210" r="4" fill={accentColor} />
-                 <circle cx="60" cy="300" r="3" fill={accentColor} />
-                 <circle cx="140" cy="300" r="3" fill={accentColor} />
-               </g>
-             </svg>
           </div>
 
           {/* Sync Button */}
-          <div className="relative z-10 mt-2">
+          <div className="relative z-10 mt-6">
             <button
               onClick={handleSave}
               disabled={saving}
-              className="w-full bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 rounded-xl py-4 text-xs tracking-[0.2em] font-black uppercase transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2"
-              style={{ boxShadow: '0 0 20px rgba(6,182,212,0.1)' }}
+              className="w-full bg-gradient-to-r from-cyan-500/20 to-cyan-500/10 hover:from-cyan-500/30 hover:to-cyan-500/20 text-cyan-300 border border-cyan-500/40 rounded-xl py-4 text-xs tracking-[0.2em] font-black uppercase transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-3 backdrop-blur-sm"
+              style={{ boxShadow: '0 0 25px rgba(6,182,212,0.2)' }}
             >
               {saving ? (
                 <>
-                  <span className="w-3 h-3 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+                  <span className="w-3 h-3 border-2 border-cyan-300 border-t-transparent rounded-full animate-spin" />
                   SYNCHRONIZING...
                 </>
               ) : (
-                'SYNC METRICS'
+                <>
+                  <span className="w-2 h-2 bg-cyan-400 rounded-full"></span>
+                  SYNC METRICS
+                </>
               )}
             </button>
           </div>
