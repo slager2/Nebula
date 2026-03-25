@@ -134,35 +134,35 @@ export default function Terminal() {
            </div>
         </div>
 
-        {/* Heatmap grid */}
-        <div className="px-6 py-4">
-           {/* Legend */}
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <span className="text-[9px] text-slate-600 tracking-widest uppercase font-semibold">LESS</span>
-              {HEAT_COLORS.map((cls, i) => (
-                <div
-                  key={i}
-                  className={`w-3 h-3 rounded-sm transition-transform hover:scale-125 ${cls}`}
-                  style={{ boxShadow: HEAT_GLOWS[i] }}
-                />
-              ))}
-              <span className="text-[9px] text-slate-600 tracking-widest uppercase font-semibold">MORE</span>
-            </div>
+         {/* Heatmap grid */}
+         <div className="px-6 py-4">
+            {/* Legend */}
+             <div className="flex items-center justify-center gap-4 mb-4">
+               <span className="text-[9px] text-slate-600 tracking-widest uppercase font-semibold">LESS</span>
+               {HEAT_COLORS.map((cls, i) => (
+                 <div
+                   key={i}
+                   className={`w-4 h-4 rounded-sm transition-all duration-150 hover:scale-125 cursor-default ${cls}`}
+                   style={{ boxShadow: HEAT_GLOWS[i] }}
+                 />
+               ))}
+               <span className="text-[9px] text-slate-600 tracking-widest uppercase font-semibold">MORE</span>
+             </div>
 
-            {/* 90 cells — 13 columns × 7 rows */}
-            <div
-              className="grid gap-1"
-              style={{ gridTemplateColumns: 'repeat(13, minmax(0, 1fr))', gridTemplateRows: 'repeat(7, minmax(0, 1fr))' }}
-            >
-              {heatmap.map((level, i) => (
-                <div
-                  key={i}
-                  className={`w-4 h-4 rounded-sm transition-all duration-200 cursor-default hover:scale-125 ${HEAT_COLORS[level]}`}
-                  style={{ boxShadow: HEAT_GLOWS[level] }}
-                  title={`Day -${90 - i}: Activity ${level}`}
-                />
-              ))}
-            </div>
+             {/* 90 cells — 13 columns × 7 rows */}
+             <div
+               className="grid gap-[2px]"
+               style={{ gridTemplateColumns: 'repeat(13, minmax(0, 1fr))', gridTemplateRows: 'repeat(7, minmax(0, 1fr))' }}
+             >
+               {heatmap.map((level, i) => (
+                 <div
+                   key={i}
+                   className={`w-4 h-4 rounded-sm transition-all duration-200 cursor-default hover:scale-125 ${HEAT_COLORS[level]}`}
+                   style={{ boxShadow: HEAT_GLOWS[level] }}
+                   title={`Day -${90 - i}: Activity ${level}`}
+                 />
+               ))}
+             </div>
 
           {/* X-axis labels */}
           <div className="flex justify-between mt-2 px-[1px]">
@@ -262,17 +262,17 @@ export default function Terminal() {
                 <div
                   key={task.ID}
                   className={`group flex items-center gap-4 px-6 py-2 border-b border-white/[0.04] transition-all duration-150 ${
-                    isDone ? 'opacity-50' : 'hover:bg-white/[0.07] hover:shadow-[inset_0_0_20px_rgba(34,211,238,0.08)]'
+                    isDone ? 'opacity-40' : 'hover:bg-white/[0.21] hover:shadow-[inset_0_0_20px_rgba(34,211,238,0.08)]'
                   }`}
                 >
                  {/* Checkbox */}
                  <button
                    onClick={() => handleComplete(task)}
                    disabled={isDone || completing === task.ID}
-                   className={`shrink-0 w-5 h-5 border rounded transition-all duration-200 flex items-center justify-center ${
+                   className={`shrink-0 w-5 h-5 border rounded transition-all duration-150 flex items-center justify-center ${
                      isDone
-                       ? 'bg-cyan-400 border-cyan-400 shadow-[inset_0_0_4px_rgba(34,211,238,0.4)]'
-                       : 'bg-transparent border-slate-600 hover:border-cyan-500 hover:shadow-[0_0_8px_rgba(34,211,238,0.6)]'
+                       ? 'bg-cyan-400 border-cyan-400 shadow-[inset_0_0_6px_rgba(34,211,238,0.5)]'
+                       : 'bg-transparent border-slate-600 hover:border-cyan-500 hover:shadow-[0_0_10px_rgba(34,211,238,0.7)]'
                    }`}
                  >
                    {isDone && (
@@ -302,7 +302,7 @@ export default function Terminal() {
                   {/* Streak */}
                   <span
                     className={`shrink-0 text-[10px] font-black tracking-widest tabular-nums ${
-                      isDone ? 'text-slate-600' : 'text-amber-400'
+                      isDone ? 'text-slate-600' : 'text-amber-400 animate-pulse'
                     }`}
                     style={{ textShadow: isDone ? 'none' : '0 0 12px rgba(251,191,36,0.8)' }}
                   >
@@ -313,7 +313,7 @@ export default function Terminal() {
                  <button
                    onClick={() => handleDelete(task.ID)}
                    disabled={deleting === task.ID}
-                   className="shrink-0 opacity-0 group-hover:opacity-100 text-[9px] text-red-500/40 hover:text-red-500 hover:shadow-[0_0_8px_rgba(239,68,68,0.4)] tracking-widest transition-all font-mono duration-100"
+                   className="shrink-0 opacity-0 group-hover:opacity-100 text-[9px] text-red-500/40 hover:text-red-500 hover:shadow-[0_0_8px_rgba(239,68,68,0.5)] tracking-widest transition-all font-mono duration-100"
                  >
                    [DEL]
                  </button>

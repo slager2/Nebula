@@ -115,12 +115,12 @@ export default function Archive() {
               <button
                 key={c.ID}
                 onClick={() => handleSelectConstellation(c.ID)}
-                 className={`w-full text-left px-3 py-2.5 border-l-2 transition-all duration-200 rounded ${
-                   isActive
-                     ? 'border-l-cyan-400 bg-cyan-500/[0.07] text-cyan-300'
-                     : 'border-l-transparent text-slate-500 hover:text-slate-300 hover:bg-white/[0.03] hover:border-l-slate-600'
-                 }`}
-                 style={isActive ? { boxShadow: 'inset 0 0 25px rgba(34,211,238,0.05), 0 0 15px rgba(34,211,238,0.15)' } : {}}
+                className={`w-full text-left px-3 py-2.5 border-l-2 transition-all duration-200 rounded ${
+                  isActive
+                    ? 'border-l-cyan-400 bg-cyan-500/[0.07] text-cyan-300'
+                    : 'border-l-transparent text-slate-500 hover:text-slate-300 hover:bg-white/[0.03] hover:border-l-slate-600'
+                }`}
+                style={isActive ? { boxShadow: 'inset 0 0 25px rgba(34,211,238,0.05), 0 0 15px rgba(34,211,238,0.15)' } : {}}
               >
                 <p
                   className="text-[10px] font-black uppercase tracking-wider truncate font-sans"
@@ -177,12 +177,12 @@ export default function Archive() {
               <button
                 key={node.ID}
                 onClick={() => setSelectedShardId(node.ID)}
-                 className={`w-full text-left px-4 py-3 border-b border-white/[0.04] border-l-2 transition-all duration-200 rounded ${
-                   isActive
-                     ? 'border-l-cyan-400 bg-cyan-500/[0.10] text-cyan-300'
-                     : 'border-l-transparent text-slate-500 hover:bg-white/[0.03] hover:text-slate-300 hover:border-l-slate-700'
-                 }`}
-                 style={isActive ? { boxShadow: '0 0 15px rgba(34,211,238,0.20)' } : {}}
+                className={`w-full text-left px-4 py-3 border-b border-white/[0.04] border-l-2 transition-all duration-200 rounded ${
+                  isActive
+                    ? 'border-l-cyan-400 bg-cyan-500/[0.10] text-cyan-300'
+                    : 'border-l-transparent text-slate-500 hover:bg-white/[0.03] hover:text-slate-300 hover:border-l-slate-700'
+                }`}
+                style={isActive ? { boxShadow: 'inset 0 0 25px rgba(34,211,238,0.05), 0 0 15px rgba(34,211,238,0.20)' } : {}}
               >
                 <p className="text-[8px] text-slate-600 tracking-widest mb-0.5 font-mono">
                   SHARD X-{String(node.ID).padStart(3, '0')}
@@ -285,16 +285,16 @@ export default function Archive() {
                 <span className="text-[9px] text-slate-600 tracking-[0.35em] uppercase font-black block mb-2 font-mono">
                   KNOWLEDGE SHARD // OPERATOR SYNTHESIS
                 </span>
-                 <blockquote
-                   className="border-l-4 border-cyan-500 pl-6 py-6 pr-6 leading-relaxed text-sm text-slate-300 rounded-r-lg font-sans"
-                   style={{
-                     background: 'rgba(11,12,16,0.8)',
-                     borderLeftColor: '#06b6d4',
-                     boxShadow: 'inset 0 0 40px rgba(34,211,238,0.06), 0 0 40px rgba(34,211,238,0.12)',
-                     backdropFilter: 'blur(16px)',
-                     border: '1px solid rgba(34,211,238,0.15)',
-                   }}
-                 >
+                <blockquote
+                  className="border-l-4 border-cyan-500 pl-6 py-6 pr-6 rounded-r-lg font-sans"
+                  style={{
+                    background: 'rgba(11,12,16,0.85)',
+                    borderLeftColor: '#06b6d4',
+                    boxShadow: 'inset 0 0 50px rgba(34,211,238,0.08), 0 0 50px rgba(34,211,238,0.15)',
+                    backdropFilter: 'blur(18px)',
+                    border: '1px solid rgba(34,211,238,0.20)',
+                  }}
+                >
                   <p className="whitespace-pre-wrap font-sans text-sm leading-relaxed tracking-normal text-slate-300">
                     {selectedShard.KnowledgeShard || '// EMPTY SHARD DATA — NO SYNTHESIS RECORDED'}
                   </p>
@@ -307,10 +307,10 @@ export default function Archive() {
                   <span className="text-[9px] text-slate-600 tracking-[0.35em] uppercase font-black block mb-2 font-mono">
                     PRACTICAL DIRECTIVE
                   </span>
-                   <div
-                     className="border border-amber-500/30 px-4 py-3 text-sm text-amber-400/70 tracking-wide leading-relaxed font-sans rounded"
-                     style={{ background: 'rgba(245,158,11,0.03)', boxShadow: '0 0 25px rgba(245,158,11,0.08)' }}
-                   >
+                  <div
+                    className="border border-amber-500/30 px-4 py-3 text-sm text-amber-400/70 tracking-wide leading-relaxed font-sans rounded"
+                    style={{ background: 'rgba(245,158,11,0.03)', boxShadow: '0 0 25px rgba(245,158,11,0.10)' }}
+                  >
                     {selectedShard.Codex.practical_task}
                   </div>
                 </div>
@@ -319,36 +319,36 @@ export default function Archive() {
             </div>
 
             {/* ── ANKI FOOTER — pinned to bottom ── */}
-             <div className="shrink-0 flex items-center justify-center gap-0 border-t border-white/[0.06] bg-black/40">
-               {reviewingNodeId === selectedShard?.ID ? (
-                 <div className="flex-1 flex items-center justify-center">
-                   <span className="text-cyan-400 font-mono text-[10px] tracking-[0.35em] uppercase">
-                     [ ✓ NEURAL LINK UPDATED ]
-                   </span>
-                 </div>
-               ) : (
-                 <>
-                   <button
-                     onClick={() => handleReview(selectedShard.ID, 'hard')}
-                     className="flex-1 py-4 text-[10px] font-black tracking-[0.35em] uppercase border-r border-white/[0.05] text-red-400 bg-red-500/10 border border-red-500/50 hover:bg-red-500/20 transition-all duration-200 font-mono"
-                   >
-                     [ HARD ]
-                   </button>
-                   <button
-                     onClick={() => handleReview(selectedShard.ID, 'good')}
-                     className="flex-1 py-4 text-[10px] font-black tracking-[0.35em] uppercase border-r border-white/[0.05] text-yellow-400 bg-yellow-500/10 border border-yellow-500/50 hover:bg-yellow-500/20 transition-all duration-200 font-mono"
-                   >
-                     [ GOOD ]
-                   </button>
-                   <button
-                     onClick={() => handleReview(selectedShard.ID, 'easy')}
-                     className="flex-1 py-4 text-[10px] font-black tracking-[0.35em] uppercase text-cyan-400 bg-cyan-500/10 border border-cyan-500/50 hover:bg-cyan-500/20 transition-all duration-200 font-mono"
-                   >
-                     [ EASY ]
-                   </button>
-                 </>
-               )}
-             </div>
+            <div className="shrink-0 flex items-center justify-center gap-0 border-t border-white/[0.06] bg-black/40">
+              {reviewingNodeId === selectedShard?.ID ? (
+                <div className="flex-1 flex items-center justify-center">
+                  <span className="text-cyan-400 font-mono text-[10px] tracking-[0.35em] uppercase">
+                    [ ✓ NEURAL LINK UPDATED ]
+                  </span>
+                </div>
+              ) : (
+                <>
+                  <button
+                    onClick={() => handleReview(selectedShard.ID, 'hard')}
+                    className="flex-1 py-4 text-[10px] font-black tracking-[0.35em] uppercase border-r border-white/[0.05] text-red-400 bg-red-500/10 border-red-500/50 hover:bg-red-500/20 transition-all duration-200 font-mono"
+                  >
+                    [ HARD ]
+                  </button>
+                  <button
+                    onClick={() => handleReview(selectedShard.ID, 'good')}
+                    className="flex-1 py-4 text-[10px] font-black tracking-[0.35em] uppercase border-r border-white/[0.05] text-yellow-400 bg-yellow-500/10 border-yellow-500/50 hover:bg-yellow-500/20 transition-all duration-200 font-mono"
+                  >
+                    [ GOOD ]
+                  </button>
+                  <button
+                    onClick={() => handleReview(selectedShard.ID, 'easy')}
+                    className="flex-1 py-4 text-[10px] font-black tracking-[0.35em] uppercase text-cyan-400 bg-cyan-500/10 border-cyan-500/50 hover:bg-cyan-500/20 transition-all duration-200 font-mono"
+                  >
+                    [ EASY ]
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         )}
 
