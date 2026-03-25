@@ -1,42 +1,42 @@
 import { useState } from 'react';
 import useStore from '../store/useStore';
 
-function ProgressRing({ value, max, label, sublabel, color, glowColor, size = 160 }) {
-  const strokeWidth = 8;
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const pct = max > 0 ? Math.min(value / max, 1) : 0;
-  const offset = circumference * (1 - pct);
+function ProgressRing({ value, max, label, sublabel, color, glowColor, size = 150 }) {
+   const strokeWidth = 8;
+   const radius = (size - strokeWidth) / 2;
+   const circumference = 2 * Math.PI * radius;
+   const pct = max > 0 ? Math.min(value / max, 1) : 0;
+   const offset = circumference * (1 - pct);
 
-  return (
-    <div className="flex flex-col items-center">
-      <div className="relative" style={{ width: size, height: size }}>
-        <svg width={size} height={size} className="-rotate-90">
-          <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#1e293b" strokeWidth={strokeWidth} />
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            fill="none"
-            stroke={color}
-            strokeWidth={strokeWidth}
-            strokeDasharray={circumference}
-            strokeDashoffset={offset}
-            strokeLinecap="round"
-            className="transition-all duration-700 ease-out"
-            style={{ filter: `drop-shadow(0 0 16px ${glowColor})` }}
-          />
-        </svg>
-        <div className="absolute inset-0 flex items-center justify-center flex-col">
-          <p className="text-3xl font-black text-white leading-none font-mono">
-            {typeof value === 'number' ? value.toFixed(0) : value}
-          </p>
-          <p className="text-[10px] text-slate-500 tracking-wider uppercase mt-1">{label}</p>
-        </div>
-      </div>
-      {sublabel && <p className="text-xs text-slate-600 mt-2 font-mono tracking-widest uppercase">{sublabel}</p>}
-    </div>
-  );
+   return (
+     <div className="flex flex-col items-center">
+       <div className="relative" style={{ width: size, height: size }}>
+         <svg width={size} height={size} className="-rotate-90">
+           <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#1e293b" strokeWidth={strokeWidth} />
+           <circle
+             cx={size / 2}
+             cy={size / 2}
+             r={radius}
+             fill="none"
+             stroke={color}
+             strokeWidth={strokeWidth}
+             strokeDasharray={circumference}
+             strokeDashoffset={offset}
+             strokeLinecap="round"
+             className="transition-all duration-700 ease-out"
+             style={{ filter: `drop-shadow(0 0 20px ${glowColor})` }}
+           />
+         </svg>
+         <div className="absolute inset-0 flex items-center justify-center flex-col">
+           <p className="text-3xl font-black text-white leading-none font-mono">
+             {typeof value === 'number' ? value.toFixed(0) : value}
+           </p>
+           <p className="text-[10px] text-slate-500 tracking-wider uppercase mt-1">{label}</p>
+         </div>
+       </div>
+       {sublabel && <p className="text-xs text-slate-600 mt-2 font-mono tracking-widest uppercase">{sublabel}</p>}
+     </div>
+   );
 }
 
 function getSyncColor(rate) {
@@ -138,130 +138,130 @@ export default function Profile() {
           <h3 className="text-xs font-black tracking-[0.2em] text-slate-400 uppercase mb-8">Sync Metrics</h3>
 
           <div className="flex flex-col items-center justify-center gap-16 flex-1">
-            <ProgressRing
-              value={routineScore}
-              max={100}
-              label="ROUTINE"
-              sublabel={`${routineScore.toFixed(1)}% STABILITY`}
-              color="#06b6d4"
-              glowColor="rgba(6,182,212,0.8)"
-              size={140}
-            />
-            <ProgressRing
-              value={cognitiveScore}
-              max={100}
-              label="COGNITIVE"
-              sublabel={`${cognitiveScore.toFixed(1)}% CAPACITY`}
-              color="#8b5cf6"
-              glowColor="rgba(139,92,246,0.8)"
-              size={140}
-            />
+             <ProgressRing
+               value={routineScore}
+               max={100}
+               label="ROUTINE"
+               sublabel={`${routineScore.toFixed(1)}% STABILITY`}
+               color="#06b6d4"
+               glowColor="rgba(6,182,212,0.9)"
+               size={150}
+             />
+             <ProgressRing
+               value={cognitiveScore}
+               max={100}
+               label="COGNITIVE"
+               sublabel={`${cognitiveScore.toFixed(1)}% CAPACITY`}
+               color="#8b5cf6"
+               glowColor="rgba(139,92,246,0.9)"
+               size={150}
+             />
           </div>
         </div>
 
         {/* Right Column: Medical Pod */}
-        <div className="lg:col-span-3 bg-[#0B0C10]/80 backdrop-blur-xl border border-white/5 rounded-2xl p-8 flex flex-col relative overflow-hidden shadow-2xl"
-             style={{ boxShadow: '0 25px 50px -12px rgba(6,182,212,0.15), inset 0 0 80px rgba(6,182,212,0.08)' }}>
+         <div className="lg:col-span-3 bg-[#0B0C10]/80 backdrop-blur-xl border border-white/5 rounded-2xl p-8 flex flex-col relative overflow-hidden shadow-2xl"
+              style={{ boxShadow: '0 30px 60px -12px rgba(6,182,212,0.20), inset 0 0 100px rgba(6,182,212,0.10)' }}>
           
-          {/* Grid Background */}
-          <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(6,182,212,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.1)_1px,transparent_1px)', backgroundSize: '50px 50px' }} />
+           {/* Grid Background */}
+           <div className="absolute inset-0 opacity-25 pointer-events-none" style={{ backgroundImage: 'linear-gradient(rgba(6,182,212,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.1)_1px,transparent_1px)', backgroundSize: '50px 50px' }} />
           
-          {/* Corner Accents */}
-          <div className="absolute top-0 left-0 w-32 h-32 bg-gradient-to-br from-cyan-500/5 to-transparent pointer-events-none" />
-          <div className="absolute bottom-0 right-0 w-32 h-32 bg-gradient-to-tl from-cyan-500/5 to-transparent pointer-events-none" />
+           {/* Corner Accents */}
+           <div className="absolute top-0 left-0 w-32 h-32 bg-gradient-to-br from-cyan-500/6 to-transparent pointer-events-none" />
+           <div className="absolute bottom-0 right-0 w-32 h-32 bg-gradient-to-tl from-cyan-500/6 to-transparent pointer-events-none" />
 
           <h3 className="text-xs font-black tracking-[0.2em] text-cyan-400/80 uppercase mb-6 relative z-10">Medical Pod</h3>
 
           <div className="flex-1 relative z-10 w-full flex flex-col">
             {/* Top Row: Height and Weight Inputs */}
             <div className="grid grid-cols-2 gap-4 mb-6">
-              {/* Height Card */}
-              <div className="bg-gradient-to-br from-cyan-500/10 to-transparent border border-cyan-500/30 rounded-xl p-4 backdrop-blur-sm hover:border-cyan-500/50 transition-all"
-                   style={{ boxShadow: '0 0 20px rgba(6,182,212,0.1), inset 0 0 20px rgba(6,182,212,0.05)' }}>
-                <label className="text-[9px] text-cyan-400/70 uppercase tracking-widest font-black mb-2 block">Height</label>
-                <input
-                  type="number"
-                  placeholder={user.Height || '0'}
-                  value={height}
-                  onChange={(e) => setHeight(e.target.value)}
-                  className="w-full bg-black/40 text-2xl font-black font-mono text-cyan-300 border border-cyan-500/20 rounded-lg px-4 py-3 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/60 transition-all text-center placeholder-cyan-900/50 backdrop-blur-sm"
-                  style={{ boxShadow: 'inset 0 0 10px rgba(6,182,212,0.05)' }}
-                />
-                <p className="text-[8px] text-cyan-500/50 uppercase tracking-widest font-mono mt-2">cm</p>
-              </div>
+               {/* Height Card */}
+               <div className="bg-gradient-to-br from-cyan-500/10 to-transparent border border-cyan-500/40 rounded-xl p-4 backdrop-blur-sm hover:border-cyan-500/50 transition-all"
+                    style={{ boxShadow: '0 0 25px rgba(6,182,212,0.12), inset 0 0 25px rgba(6,182,212,0.06)' }}>
+                 <label className="text-[9px] text-cyan-400/70 uppercase tracking-widest font-black mb-2 block">Height</label>
+                 <input
+                   type="number"
+                   placeholder={user.Height || '0'}
+                   value={height}
+                   onChange={(e) => setHeight(e.target.value)}
+                   className="w-full bg-black/40 text-2xl font-black font-mono text-cyan-300 border border-cyan-500/20 rounded-lg px-4 py-3 focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/80 transition-all text-center placeholder-cyan-900/70 backdrop-blur-sm"
+                   style={{ boxShadow: 'inset 0 0 10px rgba(6,182,212,0.05)' }}
+                 />
+                 <p className="text-[8px] text-cyan-500/50 uppercase tracking-widest font-mono mt-2">cm</p>
+               </div>
 
-              {/* Weight Card */}
-              <div className="bg-gradient-to-br from-cyan-500/10 to-transparent border border-cyan-500/30 rounded-xl p-4 backdrop-blur-sm hover:border-cyan-500/50 transition-all"
-                   style={{ boxShadow: '0 0 20px rgba(6,182,212,0.1), inset 0 0 20px rgba(6,182,212,0.05)' }}>
-                <label className="text-[9px] text-cyan-400/70 uppercase tracking-widest font-black mb-2 block">Weight</label>
-                <input
-                  type="number"
-                  placeholder={user.Weight || '0'}
-                  value={weight}
-                  onChange={(e) => setWeight(e.target.value)}
-                  className="w-full bg-black/40 text-2xl font-black font-mono text-cyan-300 border border-cyan-500/20 rounded-lg px-4 py-3 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/60 transition-all text-center placeholder-cyan-900/50 backdrop-blur-sm"
-                  style={{ boxShadow: 'inset 0 0 10px rgba(6,182,212,0.05)' }}
-                />
-                <p className="text-[8px] text-cyan-500/50 uppercase tracking-widest font-mono mt-2">kg</p>
-              </div>
+               {/* Weight Card */}
+               <div className="bg-gradient-to-br from-cyan-500/10 to-transparent border border-cyan-500/40 rounded-xl p-4 backdrop-blur-sm hover:border-cyan-500/50 transition-all"
+                    style={{ boxShadow: '0 0 25px rgba(6,182,212,0.12), inset 0 0 25px rgba(6,182,212,0.06)' }}>
+                 <label className="text-[9px] text-cyan-400/70 uppercase tracking-widest font-black mb-2 block">Weight</label>
+                 <input
+                   type="number"
+                   placeholder={user.Weight || '0'}
+                   value={weight}
+                   onChange={(e) => setWeight(e.target.value)}
+                   className="w-full bg-black/40 text-2xl font-black font-mono text-cyan-300 border border-cyan-500/20 rounded-lg px-4 py-3 focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/80 transition-all text-center placeholder-cyan-900/70 backdrop-blur-sm"
+                   style={{ boxShadow: 'inset 0 0 10px rgba(6,182,212,0.05)' }}
+                 />
+                 <p className="text-[8px] text-cyan-500/50 uppercase tracking-widest font-mono mt-2">kg</p>
+               </div>
             </div>
 
             {/* Center: BMI & Biometric Pod */}
             <div className="relative flex-1 flex items-center justify-center">
-              {/* Animated Scanner Line */}
-              <div className="scanner-line absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent" 
-                   style={{ boxShadow: '0 0 20px rgba(6,182,212,0.8)' }} />
+               {/* Animated Scanner Line */}
+               <div className="scanner-line absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-cyan-300 to-transparent" 
+                    style={{ boxShadow: '0 0 25px rgba(6,182,212,1)' }} />
 
               {/* Main BMI Card */}
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="relative w-full max-w-xs">
-                  {/* Outer Frame */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-cyan-500/5 rounded-2xl border border-cyan-500/20 backdrop-blur-md"
-                       style={{ boxShadow: '0 0 40px rgba(6,182,212,0.15), inset 0 0 40px rgba(6,182,212,0.08)' }} />
+                   {/* Outer Frame */}
+                   <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-cyan-500/5 rounded-2xl border border-cyan-500/20 backdrop-blur-md"
+                        style={{ boxShadow: '0 0 50px rgba(6,182,212,0.20), inset 0 0 50px rgba(6,182,212,0.10)' }} />
                   
                   {/* Inner Content */}
                   <div className="relative p-8 flex flex-col items-center justify-center">
                     <p className="text-[10px] text-cyan-400/60 uppercase tracking-[0.3em] font-black mb-4">Body Mass Index</p>
                     
-                    {/* BMI Value */}
-                    <div className="relative mb-6">
-                      <p className="text-6xl font-black font-mono" style={{ color: bmiState.color, textShadow: `0 0 30px ${bmiState.color}, 0 0 60px ${bmiState.color}40` }}>
-                        {bmi > 0 ? bmi.toFixed(1) : '—'}
-                      </p>
-                    </div>
+                     {/* BMI Value */}
+                     <div className="relative mb-6">
+                       <p className="text-6xl font-black font-mono" style={{ color: bmiState.color, textShadow: `0 0 40px ${bmiState.color}, 0 0 80px ${bmiState.color}50` }}>
+                         {bmi > 0 ? bmi.toFixed(1) : '—'}
+                       </p>
+                     </div>
 
-                    {/* Status Badge */}
-                    <div className="px-4 py-2 rounded-lg border backdrop-blur-sm" style={{ borderColor: `${bmiState.color}50`, backgroundColor: `${bmiState.color}08`, boxShadow: `0 0 20px ${bmiState.color}20` }}>
-                      <p className="text-[10px] tracking-[0.2em] uppercase font-black" style={{ color: bmiState.color }}>
-                        {bmiState.label}
-                      </p>
-                    </div>
+                     {/* Status Badge */}
+                     <div className="px-4 py-2 rounded-lg border backdrop-blur-sm" style={{ borderColor: `${bmiState.color}50`, backgroundColor: `${bmiState.color}08`, boxShadow: `0 0 30px ${bmiState.color}30` }}>
+                       <p className="text-[10px] tracking-[0.2em] uppercase font-black" style={{ color: bmiState.color }}>
+                         {bmiState.label}
+                       </p>
+                     </div>
 
-                    {/* Stats Grid */}
-                    <div className="grid grid-cols-2 gap-4 mt-8 w-full text-center">
-                      <div className="bg-cyan-500/5 border border-cyan-500/20 rounded-lg p-3 backdrop-blur-sm" style={{ boxShadow: 'inset 0 0 10px rgba(6,182,212,0.05)' }}>
-                        <p className="text-cyan-300 text-sm font-black font-mono">{currentHeight > 0 ? currentHeight : '—'}</p>
-                        <p className="text-[8px] text-cyan-500/50 uppercase tracking-wider font-mono mt-1">Height cm</p>
-                      </div>
-                      <div className="bg-cyan-500/5 border border-cyan-500/20 rounded-lg p-3 backdrop-blur-sm" style={{ boxShadow: 'inset 0 0 10px rgba(6,182,212,0.05)' }}>
-                        <p className="text-cyan-300 text-sm font-black font-mono">{currentWeight > 0 ? currentWeight : '—'}</p>
-                        <p className="text-[8px] text-cyan-500/50 uppercase tracking-wider font-mono mt-1">Weight kg</p>
-                      </div>
-                    </div>
+                     {/* Stats Grid */}
+                     <div className="grid grid-cols-2 gap-4 mt-8 w-full text-center">
+                       <div className="bg-cyan-500/5 border border-cyan-500/30 rounded-lg p-3 backdrop-blur-sm" style={{ boxShadow: 'inset 0 0 15px rgba(6,182,212,0.08)' }}>
+                         <p className="text-cyan-300 text-sm font-black font-mono">{currentHeight > 0 ? currentHeight : '—'}</p>
+                         <p className="text-[8px] text-cyan-500/50 uppercase tracking-wider font-mono mt-1">Height cm</p>
+                       </div>
+                       <div className="bg-cyan-500/5 border border-cyan-500/30 rounded-lg p-3 backdrop-blur-sm" style={{ boxShadow: 'inset 0 0 15px rgba(6,182,212,0.08)' }}>
+                         <p className="text-cyan-300 text-sm font-black font-mono">{currentWeight > 0 ? currentWeight : '—'}</p>
+                         <p className="text-[8px] text-cyan-500/50 uppercase tracking-wider font-mono mt-1">Weight kg</p>
+                       </div>
+                     </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Sync Button */}
-          <div className="relative z-10 mt-6">
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="w-full bg-gradient-to-r from-cyan-500/20 to-cyan-500/10 hover:from-cyan-500/30 hover:to-cyan-500/20 text-cyan-300 border border-cyan-500/40 rounded-xl py-4 text-xs tracking-[0.2em] font-black uppercase transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-3 backdrop-blur-sm"
-              style={{ boxShadow: '0 0 25px rgba(6,182,212,0.2)' }}
-            >
+           {/* Sync Button */}
+           <div className="relative z-10 mt-6">
+             <button
+               onClick={handleSave}
+               disabled={saving}
+               className="w-full bg-gradient-to-r from-cyan-500/25 to-cyan-500/12 hover:from-cyan-500/35 hover:to-cyan-500/20 text-cyan-300 border border-cyan-500/40 rounded-xl py-4 text-xs tracking-[0.2em] font-black uppercase transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-3 backdrop-blur-sm hover:shadow-[0_0_40px_rgba(6,182,212,0.35)]"
+               style={{ boxShadow: '0 0 30px rgba(6,182,212,0.25)' }}
+             >
               {saving ? (
                 <>
                   <span className="w-3 h-3 border-2 border-cyan-300 border-t-transparent rounded-full animate-spin" />
