@@ -1,321 +1,177 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import useStore from '../store/useStore';
 
-function getPendingCount(archiveData) {
-  const now = new Date();
-  let count = 0;
-  archiveData.forEach(c => {
-    c.nodes?.forEach(n => {
-      if (!n.NextReviewAt || new Date(n.NextReviewAt) <= now) {
-        count++;
-      }
-    });
-  });
-  return count;
-}
+const isDue = (node) => !node?.NextReviewAt || new Date(node.NextReviewAt) <= new Date();
 
-export default function Archive() {
-  const archiveData  = useStore((s) => s.archiveData);
-  const fetchArchive = useStore((s) => s.fetchArchive);
-  const reviewNode   = useStore((s) => s.reviewNode);
+function ReviewSession({ node }) {
+  const reviewNode = useStore((state) => state.reviewNode);
+  const [attempt, setAttempt] = useState('');
+  const [revealed, setRevealed] = useState(false);
+  const [submitting, setSubmitting] = useState(null);
+  const [message, setMessage] = useState(null);
+  const [error, setError] = useState(null);
+  const due = isDue(node);
+  const codex = node.Codex || {};
 
-  const [selectedConstellationId, setSelectedConstellationId] = useState(null);
-  const [selectedShardId, setSelectedShardId]                 = useState(null);
-  const [reviewingNodeId, setReviewingNodeId]                 = useState(null);
-
-  useEffect(() => { fetchArchive(); }, [fetchArchive]);
-
-  const handleSelectConstellation = (id) => {
-    setSelectedConstellationId(id);
-    setSelectedShardId(null);
-  };
-
-  const activeConstellationId = selectedConstellationId ?? archiveData[0]?.ID ?? null;
-  const selectedConstellation = archiveData.find(c => c.ID === activeConstellationId);
-  const shards                = selectedConstellation?.nodes || [];
-  const selectedShard         = shards.find(n => n.ID === selectedShardId);
-  const pendingCount          = getPendingCount(archiveData);
-
-  const handleReview = async (nodeId, quality) => {
-    setReviewingNodeId(nodeId);
-    const result = await reviewNode(nodeId, quality);
+  const submit = async (quality) => {
+    setSubmitting(quality);
+    setError(null);
+    const result = await reviewNode(node.ID, quality);
     if (result.ok) {
-      setTimeout(() => setReviewingNodeId(null), 1500);
+      setMessage(`Next review: ${new Date(result.data.node.NextReviewAt).toLocaleString()}`);
     } else {
-      setReviewingNodeId(null);
+      setError(result.error);
     }
+    setSubmitting(null);
   };
 
   return (
-    <div className="h-full flex overflow-hidden font-sans bg-[#050510]">
-
-      <div className="w-[20%] min-w-[180px] flex flex-col border-r border-white/[0.06] overflow-hidden">
-        <div className="shrink-0 px-4 pt-5 pb-3 border-b border-white/[0.04]">
-          <span className="text-[9px] font-black tracking-[0.35em] text-slate-500 uppercase font-mono">
-            CONSTELLATIONS
-          </span>
-        </div>
-
-        <div className="shrink-0 mx-3 my-3">
-          <div
-            className="relative overflow-hidden border border-red-500/30 p-3 rounded-lg backdrop-blur-xl"
-            style={{ background: 'rgba(239,68,68,0.04)', boxShadow: '0 0 20px rgba(239,68,68,0.08) inset' }}
-          >
-            <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-red-500 animate-pulse" />
-            <div className="pl-2">
-              <div className="flex items-center gap-1.5 mb-1">
-                <span
-                  className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping"
-                  style={{ boxShadow: '0 0 6px rgba(239,68,68,1)' }}
-                />
-                <span className="text-[8px] font-black tracking-[0.3em] text-red-500 uppercase font-mono">
-                  SYNAPTIC ALERT
-                </span>
-              </div>
-              <p className="text-xl font-black text-white tabular-nums">
-                {pendingCount}
-                <span className="text-[9px] text-red-400/70 tracking-widest ml-1.5 uppercase font-mono">PENDING</span>
-              </p>
-              <p className="text-[8px] text-red-500/50 uppercase tracking-wider mt-0.5 font-mono">
-                Entropy risk detected
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto hidden-scrollbar px-3 pb-4 flex flex-col gap-0.5">
-          {archiveData.length === 0 && (
-            <div className="p-3 border border-dashed border-white/10 text-center mt-2 rounded">
-              <span className="text-[9px] text-slate-600 uppercase tracking-widest font-mono">
-                NO DATA
-              </span>
-            </div>
-          )}
-          {archiveData.map(c => {
-            const isActive = activeConstellationId === c.ID;
-            return (
-              <button
-                key={c.ID}
-                onClick={() => handleSelectConstellation(c.ID)}
-                className={`w-full text-left px-3 py-2.5 border-l-2 transition-all duration-200 rounded ${
-                  isActive
-                    ? 'border-l-cyan-400 bg-cyan-500/[0.07] text-cyan-300'
-                    : 'border-l-transparent text-slate-500 hover:text-slate-300 hover:bg-white/[0.03] hover:border-l-slate-600'
-                }`}
-                style={isActive ? { boxShadow: 'inset 0 0 25px rgba(34,211,238,0.05), 0 0 15px rgba(34,211,238,0.15)' } : {}}
-              >
-                <p
-                  className="text-[10px] font-black uppercase tracking-wider truncate font-sans"
-                  style={isActive ? { textShadow: '0 0 8px rgba(34,211,238,0.5)' } : {}}
-                >
-                  {c.Topic}
-                </p>
-                <p className="text-[8px] text-slate-600 mt-0.5 tracking-widest font-mono">
-                  {(c.nodes?.length || 0)} SHARDS
-                </p>
-              </button>
-            );
-          })}
-        </div>
+    <article className="mx-auto w-full max-w-3xl px-5 py-7 md:px-8 md:py-10">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="status-pill">{due ? 'Review due' : 'Notes'}</span>
+        {node.NextReviewAt && <span className="text-xs text-slate-500">Scheduled {new Date(node.NextReviewAt).toLocaleString()}</span>}
       </div>
+      <h1 className="mt-4 text-3xl font-bold tracking-tight md:text-4xl">{node.Title}</h1>
+      <p className="mt-3 text-slate-400">Start from memory. Reveal your notes only after you have made a genuine recall attempt.</p>
 
-      <div className="w-[30%] min-w-[200px] flex flex-col border-r border-white/[0.06] overflow-hidden">
-        <div className="shrink-0 px-4 pt-5 pb-3 border-b border-white/[0.04] flex items-center justify-between">
-          <span className="text-[9px] font-black tracking-[0.35em] text-slate-500 uppercase font-mono">
-            DATA SHARDS
-          </span>
-          {selectedConstellation && (
-            <span className="text-[8px] text-slate-700 tracking-wider truncate max-w-[50%] text-right font-mono">
-              {selectedConstellation.Topic}
-            </span>
-          )}
-        </div>
-
-        <div className="flex-1 overflow-y-auto hidden-scrollbar flex flex-col">
-          {!activeConstellationId && (
-            <div className="flex items-center justify-center flex-1">
-              <span className="text-[9px] text-slate-700 tracking-[0.3em] uppercase px-4 text-center font-mono">
-                SELECT CONSTELLATION
-              </span>
-            </div>
-          )}
-
-          {activeConstellationId && shards.length === 0 && (
-            <div className="flex items-center justify-center flex-1">
-              <span className="text-[9px] text-slate-700 tracking-[0.3em] uppercase px-4 text-center font-mono">
-                NO VERIFIED SHARDS
-              </span>
-            </div>
-          )}
-
-          {shards.map((node) => {
-            const isActive = selectedShardId === node.ID;
-            return (
-              <button
-                key={node.ID}
-                onClick={() => setSelectedShardId(node.ID)}
-                className={`w-full text-left px-4 py-3 border-b border-white/[0.04] border-l-2 transition-all duration-200 rounded ${
-                  isActive
-                    ? 'border-l-cyan-400 bg-cyan-500/[0.10] text-cyan-300'
-                    : 'border-l-transparent text-slate-500 hover:bg-white/[0.03] hover:text-slate-300 hover:border-l-slate-700'
-                }`}
-                style={isActive ? { boxShadow: 'inset 0 0 25px rgba(34,211,238,0.05), 0 0 15px rgba(34,211,238,0.20)' } : {}}
-              >
-                <p className="text-[8px] text-slate-600 tracking-widest mb-0.5 font-mono">
-                  SHARD X-{String(node.ID).padStart(3, '0')}
-                </p>
-                <p
-                  className={`text-[10px] font-bold uppercase tracking-wider truncate font-sans ${
-                    isActive ? 'text-cyan-300' : 'text-slate-400'
-                  }`}
-                  style={isActive ? { textShadow: '0 0 8px rgba(34,211,238,0.4)' } : {}}
-                >
-                  {node.Title}
-                </p>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="flex-1 flex flex-col overflow-hidden">
-
-        {!selectedShard && (
-          <div className="flex-1 flex flex-col items-center justify-center gap-4 select-none">
-            <div className="relative w-20 h-20 flex items-center justify-center">
-              <div
-                className="absolute inset-0 rounded-full border border-dashed border-cyan-500/10 animate-[spin_20s_linear_infinite]"
-              />
-              <div
-                className="absolute inset-3 rounded-full border border-dashed border-cyan-500/15 animate-[spin_12s_linear_infinite_reverse]"
-              />
-              <div
-                className="w-2 h-2 rounded-full bg-cyan-500/30"
-                style={{ boxShadow: '0 0 12px rgba(34,211,238,0.4)' }}
-              />
-            </div>
-            <p className="text-[10px] text-slate-600 tracking-[0.4em] uppercase text-center max-w-[300px] leading-loose font-mono">
-              SELECT DATA SHARD TO INITIATE<br />READING PROTOCOL
-            </p>
+      <section className="mt-7 rounded-2xl border border-violet-300/15 bg-violet-300/[0.035] p-5 md:p-6">
+        <p className="eyebrow text-violet-300">Recall prompt</p>
+        <p className="mt-3 text-lg font-semibold leading-7 text-slate-100">{codex.recall_prompt || `Explain ${node.Title} without looking at your notes.`}</p>
+        {due && !revealed && (
+          <div className="mt-5">
+            <label htmlFor={`recall-${node.ID}`} className="field-label">Your recall attempt</label>
+            <textarea id={`recall-${node.ID}`} className="input-control min-h-32 resize-y" value={attempt} onChange={(event) => setAttempt(event.target.value)} placeholder="Write what you remember. This attempt stays private and is not graded." />
+            <button className="button-primary mt-3" onClick={() => setRevealed(true)} disabled={!attempt.trim()}>Reveal notes</button>
           </div>
         )}
+        {!due && !revealed && <button className="button-secondary mt-5" onClick={() => setRevealed(true)}>Show lesson notes</button>}
+      </section>
 
-        {selectedShard && (
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <div className="flex-1 overflow-y-auto hidden-scrollbar px-8 py-6">
+      {revealed && (
+        <div className="mt-7 space-y-6">
+          <section>
+            <h2 className="text-lg font-bold">Overview</h2>
+            <p className="mt-2 leading-7 text-slate-300">{codex.overview || 'No overview was saved for this lesson.'}</p>
+          </section>
 
-              <p className="text-[8px] text-slate-600 tracking-[0.4em] uppercase mb-2 font-mono">
-                {selectedConstellation?.Topic} // SHARD X-{String(selectedShard.ID).padStart(3, '0')}
-              </p>
+          {codex.key_concepts?.length > 0 && (
+            <section>
+              <h2 className="text-sm font-semibold text-slate-400">Key concepts</h2>
+              <div className="mt-3 flex flex-wrap gap-2">{codex.key_concepts.map((concept) => <span key={concept} className="status-pill">{concept}</span>)}</div>
+            </section>
+          )}
 
-              <h1
-                className="text-3xl font-black uppercase tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-cyan-300 to-purple-400 mb-6 leading-tight font-sans"
-                style={{ filter: 'drop-shadow(0 0 20px rgba(34,211,238,0.3))' }}
-              >
-                {selectedShard.Title}
-              </h1>
+          <section className="rounded-2xl border border-emerald-300/15 bg-emerald-300/[0.03] p-5">
+            <h2 className="text-sm font-semibold text-emerald-200">Your original reflection</h2>
+            <p className="mt-3 whitespace-pre-wrap leading-7 text-slate-300">{node.KnowledgeShard || 'No reflection was recorded.'}</p>
+          </section>
 
-              <div className="mb-6">
-                <span className="text-[9px] text-slate-600 tracking-[0.35em] uppercase font-black block mb-2 font-mono">
-                  AI OVERVIEW
-                </span>
-                <p className="text-sm text-slate-300 leading-relaxed tracking-normal font-sans">
-                  {selectedShard.Codex?.overview || '// NO AI OVERVIEW AVAILABLE'}
-                </p>
+          {codex.practical_task && (
+            <section className="rounded-2xl border border-amber-300/15 bg-amber-300/[0.03] p-5">
+              <h2 className="text-sm font-semibold text-amber-200">Practice reminder</h2>
+              <p className="mt-2 leading-6 text-slate-300">{codex.practical_task}</p>
+            </section>
+          )}
+
+          {due && !message && (
+            <section>
+              <h2 className="text-lg font-bold">How well did recall go?</h2>
+              <p className="mt-1 text-sm text-slate-500">Rate the attempt, not your familiarity after seeing the answer.</p>
+              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <button className="button-danger" onClick={() => submit('again')} disabled={submitting}>Again</button>
+                <button className="button-secondary" onClick={() => submit('hard')} disabled={submitting}>Hard</button>
+                <button className="button-secondary" onClick={() => submit('good')} disabled={submitting}>Good</button>
+                <button className="button-primary" onClick={() => submit('easy')} disabled={submitting}>Easy</button>
               </div>
+            </section>
+          )}
 
-              {selectedShard.Codex?.key_concepts?.length > 0 && (
-                <div className="mb-6">
-                  <span className="text-[9px] text-slate-600 tracking-[0.35em] uppercase font-black block mb-2 font-mono">
-                    KEY CONCEPTS
-                  </span>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedShard.Codex.key_concepts.map((concept, i) => (
-                      <span
-                        key={i}
-                        className="text-[9px] text-cyan-400 border border-cyan-500/30 px-2.5 py-1 tracking-wider uppercase rounded font-mono"
-                        style={{
-                          background: 'rgba(34,211,238,0.04)',
-                          boxShadow: '0 0 8px rgba(34,211,238,0.08) inset',
-                        }}
-                      >
-                        {concept}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
+          {message && <p className="rounded-xl border border-emerald-300/20 bg-emerald-300/[0.04] p-4 text-sm text-emerald-200" role="status">{message}</p>}
+          {error && <p className="rounded-xl border border-rose-300/20 bg-rose-300/[0.04] p-4 text-sm text-rose-200" role="alert">{error}</p>}
+        </div>
+      )}
+    </article>
+  );
+}
 
-              <div className="mb-6">
-                <span className="text-[9px] text-slate-600 tracking-[0.35em] uppercase font-black block mb-2 font-mono">
-                  KNOWLEDGE SHARD // OPERATOR SYNTHESIS
-                </span>
-                <blockquote
-                  className="border-l-4 border-cyan-500 pl-6 py-6 pr-6 rounded-r-lg font-sans"
-                  style={{
-                    background: 'rgba(11,12,16,0.85)',
-                    borderLeftColor: '#06b6d4',
-                    boxShadow: 'inset 0 0 50px rgba(34,211,238,0.08), 0 0 50px rgba(34,211,238,0.15)',
-                    backdropFilter: 'blur(18px)',
-                    border: '1px solid rgba(34,211,238,0.20)',
-                  }}
-                >
-                  <p className="whitespace-pre-wrap font-sans text-sm leading-relaxed tracking-normal text-slate-300">
-                    {selectedShard.KnowledgeShard || '// EMPTY SHARD DATA — NO SYNTHESIS RECORDED'}
-                  </p>
-                </blockquote>
-              </div>
+export default function Archive() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const archive = useStore((state) => state.archiveData);
+  const status = useStore((state) => state.archiveStatus);
+  const error = useStore((state) => state.archiveError);
+  const fetchArchive = useStore((state) => state.fetchArchive);
+  const [selectedConstellationId, setSelectedConstellationId] = useState(null);
+  const [selectedNodeId, setSelectedNodeId] = useState(null);
 
-              {selectedShard.Codex?.practical_task && (
-                <div className="mb-2">
-                  <span className="text-[9px] text-slate-600 tracking-[0.35em] uppercase font-black block mb-2 font-mono">
-                    PRACTICAL DIRECTIVE
-                  </span>
-                  <div
-                    className="border border-amber-500/30 px-4 py-3 text-sm text-amber-400/70 tracking-wide leading-relaxed font-sans rounded"
-                    style={{ background: 'rgba(245,158,11,0.03)', boxShadow: '0 0 25px rgba(245,158,11,0.10)' }}
-                  >
-                    {selectedShard.Codex.practical_task}
-                  </div>
-                </div>
-              )}
+  useEffect(() => {
+    if (status === 'idle') fetchArchive();
+  }, [fetchArchive, status]);
 
+  const queryNodeId = Number(searchParams.get('node')) || null;
+  const queryConstellation = archive.find((constellation) => constellation.nodes?.some((node) => node.ID === queryNodeId));
+  const activeConstellationId = selectedConstellationId || queryConstellation?.ID || archive[0]?.ID || null;
+  const activeConstellation = archive.find((constellation) => constellation.ID === activeConstellationId);
+  const nodes = activeConstellation?.nodes || [];
+  const activeNodeId = selectedNodeId || (nodes.some((node) => node.ID === queryNodeId) ? queryNodeId : null);
+  const selectedNode = nodes.find((node) => node.ID === activeNodeId);
+  const dueCount = archive.reduce((total, constellation) => total + (constellation.nodes || []).filter(isDue).length, 0);
+
+  const selectConstellation = (id) => {
+    setSelectedConstellationId(id);
+    setSelectedNodeId(null);
+    setSearchParams({});
+  };
+
+  const selectNode = (id) => {
+    setSelectedNodeId(id);
+    setSearchParams({ node: String(id) });
+  };
+
+  if (status === 'loading' && archive.length === 0) return <div className="page-shell"><div className="surface h-72 animate-pulse bg-white/[0.025]" /></div>;
+  if (status === 'error' && archive.length === 0) return <div className="page-shell"><div className="surface mx-auto max-w-lg p-8 text-center"><h1 className="text-xl font-bold">Could not load your library</h1><p className="mt-2 text-slate-400">{error}</p><button className="button-primary mt-5" onClick={fetchArchive}>Try again</button></div></div>;
+
+  return (
+    <div className="flex min-h-[calc(100dvh-3.5rem)] flex-col lg:h-dvh lg:min-h-0">
+      <header className="border-b border-[var(--border-soft)] bg-[#0c111a]/92 px-5 py-5 md:px-7">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div><p className="eyebrow">Completed lessons</p><h1 className="mt-1 text-2xl font-bold tracking-tight">Library</h1></div>
+          <span className="status-pill">{dueCount} reviews due</span>
+        </div>
+      </header>
+
+      {archive.length === 0 ? (
+        <div className="flex flex-1 items-center justify-center p-8 text-center"><div><h2 className="text-xl font-bold">Your library is empty</h2><p className="mt-2 text-sm text-slate-500">Complete a lesson in Forge and its notes will appear here.</p></div></div>
+      ) : (
+        <div className="grid min-h-0 flex-1 grid-rows-[auto_auto_1fr] lg:grid-cols-[230px_290px_1fr] lg:grid-rows-1">
+          <aside className="overflow-x-auto border-b border-[var(--border-soft)] bg-[#0b1018] p-3 lg:overflow-y-auto lg:border-b-0 lg:border-r">
+            <div className="flex gap-2 lg:flex-col">
+              {archive.map((constellation) => (
+                <button key={constellation.ID} onClick={() => selectConstellation(constellation.ID)} className={`min-w-52 rounded-xl p-3 text-left lg:min-w-0 ${constellation.ID === activeConstellationId ? 'bg-sky-300/[0.07] text-white' : 'text-slate-400 hover:bg-white/[0.035]'}`}>
+                  <p className="truncate text-sm font-semibold">{constellation.Topic}</p>
+                  <p className="mt-1 text-xs text-slate-600">{constellation.nodes?.length || 0} completed</p>
+                </button>
+              ))}
             </div>
+          </aside>
 
-            <div className="shrink-0 flex items-center justify-center gap-0 border-t border-white/[0.06] bg-black/40">
-              {reviewingNodeId === selectedShard?.ID ? (
-                <div className="flex-1 flex items-center justify-center">
-                  <span className="text-cyan-400 font-mono text-[10px] tracking-[0.35em] uppercase">
-                    [ ✓ NEURAL LINK UPDATED ]
-                  </span>
-                </div>
-              ) : (
-                <>
-                  <button
-                    onClick={() => handleReview(selectedShard.ID, 'hard')}
-                    className="flex-1 py-4 text-[10px] font-black tracking-[0.35em] uppercase border-r border-white/[0.05] text-red-400 bg-red-500/10 border border-red-500/50 hover:bg-red-500/20 transition-all duration-200 font-mono"
-                  >
-                    [ HARD ]
-                  </button>
-                  <button
-                    onClick={() => handleReview(selectedShard.ID, 'good')}
-                    className="flex-1 py-4 text-[10px] font-black tracking-[0.35em] uppercase border-r border-white/[0.05] text-yellow-400 bg-yellow-500/10 border border-yellow-500/50 hover:bg-yellow-500/20 transition-all duration-200 font-mono"
-                  >
-                    [ GOOD ]
-                  </button>
-                  <button
-                    onClick={() => handleReview(selectedShard.ID, 'easy')}
-                    className="flex-1 py-4 text-[10px] font-black tracking-[0.35em] uppercase text-cyan-400 bg-cyan-500/10 border border-cyan-500/50 hover:bg-cyan-500/20 transition-all duration-200 font-mono"
-                  >
-                    [ EASY ]
-                  </button>
-                </>
-              )}
+          <aside className="overflow-x-auto border-b border-[var(--border-soft)] bg-[#0d131d] p-3 lg:overflow-y-auto lg:border-b-0 lg:border-r">
+            <div className="flex gap-2 lg:flex-col">
+              {nodes.map((node) => (
+                <button key={node.ID} onClick={() => selectNode(node.ID)} className={`min-w-60 rounded-xl border p-3 text-left lg:min-w-0 ${node.ID === activeNodeId ? 'border-violet-300/20 bg-violet-300/[0.055]' : 'border-transparent hover:bg-white/[0.035]'}`}>
+                  <div className="flex items-center justify-between gap-2"><p className="truncate text-sm font-semibold text-slate-200">{node.Title}</p>{isDue(node) && <span className="h-2 w-2 shrink-0 rounded-full bg-amber-300" title="Review due" />}</div>
+                  <p className="mt-1 text-xs text-slate-600">{isDue(node) ? 'Ready for recall' : `Next ${new Date(node.NextReviewAt).toLocaleDateString()}`}</p>
+                </button>
+              ))}
+              {nodes.length === 0 && <p className="p-3 text-sm text-slate-500">No completed lessons in this plan.</p>}
             </div>
-          </div>
-        )}
+          </aside>
 
-      </div>
+          <main className="min-h-0 overflow-y-auto bg-[#090d15]">
+            {selectedNode ? <ReviewSession key={selectedNode.ID} node={selectedNode} /> : <div className="flex min-h-[420px] items-center justify-center p-8 text-center"><div><h2 className="text-xl font-bold">Choose a completed lesson</h2><p className="mt-2 text-sm text-slate-500">Review due lessons are marked with an amber dot.</p></div></div>}
+          </main>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,319 +1,275 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import useStore from '../store/useStore';
 
-const TASK_TYPE_STYLES = {
-  INT: { color: 'text-cyan-400', borderColor: 'border-cyan-500/50', glowColor: 'rgba(34,211,238,0.35)', label: 'INT' },
-  STR: { color: 'text-red-400',  borderColor: 'border-red-500/50',  glowColor: 'rgba(239,68,68,0.35)',  label: 'STR' },
-  AGI: { color: 'text-lime-400', borderColor: 'border-lime-500/50', glowColor: 'rgba(163,230,53,0.35)', label: 'AGI' },
+const habitTypes = {
+  INT: { label: 'Mind', color: 'bg-sky-300' },
+  STR: { label: 'Body', color: 'bg-rose-300' },
+  AGI: { label: 'Mobility', color: 'bg-emerald-300' },
 };
 
-function mulberry32(seed) {
-  return function () {
-    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
-    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
-    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
-    return ((t ^ t >>> 14) >>> 0) / 4294967296;
-  };
+function MetricCard({ label, value, detail }) {
+  return (
+    <div className="surface-muted p-4">
+      <p className="text-sm font-medium text-slate-400">{label}</p>
+      <p className="mt-2 text-3xl font-bold tracking-tight text-white">{value}</p>
+      <p className="mt-1 text-xs text-slate-500">{detail}</p>
+    </div>
+  );
 }
 
-function generateHeatmapData(routineScore) {
-  const rand = mulberry32(42 + Math.floor(routineScore));
-  return Array.from({ length: 90 }, (_, i) => {
-    const r = rand();
-    const bias = i / 90;
-    const raw = r + bias * 0.4;
-    if (raw < 0.25) return 0;
-    if (raw < 0.5)  return 1;
-    if (raw < 0.75) return 2;
-    return 3;
-  });
+function ActivityGrid({ days }) {
+  const max = Math.max(1, ...days.map((day) => day.total));
+  return (
+    <div>
+      <div className="flex flex-wrap gap-1.5" aria-label="Learning activity over the last 30 days">
+        {days.map((day) => {
+          const intensity = day.total / max;
+          return (
+            <div
+              key={day.date}
+              className="h-7 min-w-7 flex-1 rounded-md border border-white/[0.035]"
+              style={{ backgroundColor: day.total ? `rgba(56, 189, 248, ${0.18 + intensity * 0.62})` : '#192230' }}
+              title={`${day.date}: ${day.lessons} lessons, ${day.reviews} reviews, ${day.habits} habits`}
+              role="img"
+              aria-label={`${day.date}: ${day.lessons} lessons, ${day.reviews} reviews, ${day.habits} habits`}
+            />
+          );
+        })}
+      </div>
+      <div className="mt-2 flex justify-between text-xs text-slate-600"><span>30 days ago</span><span>Today</span></div>
+    </div>
+  );
 }
-
-const HEAT_COLORS = [
-  'bg-slate-800',
-  'bg-cyan-900',
-  'bg-cyan-600',
-  'bg-cyan-400',
-];
-
-const HEAT_GLOWS = [
-  '',
-  '',
-  '0 0 4px rgba(8,145,178,0.6)',
-  '0 0 6px rgba(34,211,238,0.9)',
-];
 
 export default function Terminal() {
-  const { dailyTasks, fetchDailyTasks, completeDaily, createDailyTask, deleteDailyTask, user } = useStore();
-  const [completing, setCompleting] = useState(null);
-  const [deleting, setDeleting]     = useState(null);
-  const [title, setTitle]           = useState('');
-  const [type, setType]             = useState('INT');
-  const [creating, setCreating]     = useState(false);
+  const today = useStore((state) => state.learningToday);
+  const status = useStore((state) => state.learningStatus);
+  const error = useStore((state) => state.learningError);
+  const fetchToday = useStore((state) => state.fetchLearningToday);
+  const completeDaily = useStore((state) => state.completeDaily);
+  const createDailyTask = useStore((state) => state.createDailyTask);
+  const deleteDailyTask = useStore((state) => state.deleteDailyTask);
+  const dailyTasks = useStore((state) => state.dailyTasks);
 
-  useEffect(() => { fetchDailyTasks(); }, [fetchDailyTasks]);
+  const [title, setTitle] = useState('');
+  const [type, setType] = useState('INT');
+  const [busyId, setBusyId] = useState(null);
+  const [creating, setCreating] = useState(false);
+  const [formError, setFormError] = useState(null);
+
+  useEffect(() => {
+    if (status === 'idle') fetchToday();
+  }, [fetchToday, status]);
 
   const handleComplete = async (task) => {
-    if (task.IsCompleted || completing) return;
-    setCompleting(task.ID);
-    await completeDaily(task.ID);
-    setCompleting(null);
+    setBusyId(task.ID);
+    setFormError(null);
+    const result = await completeDaily(task.ID);
+    if (!result.ok) setFormError(result.error);
+    setBusyId(null);
   };
 
-  const handleCreate = async (e) => {
-    e.preventDefault();
+  const handleCreate = async (event) => {
+    event.preventDefault();
     if (!title.trim()) return;
     setCreating(true);
-    await createDailyTask({ title: title.trim(), type });
-    setTitle('');
+    setFormError(null);
+    const result = await createDailyTask({ title: title.trim(), type });
+    if (result.ok) setTitle('');
+    else setFormError(result.error);
     setCreating(false);
   };
 
   const handleDelete = async (id) => {
-    setDeleting(id);
-    await deleteDailyTask(id);
-    setDeleting(null);
+    setBusyId(id);
+    setFormError(null);
+    const result = await deleteDailyTask(id);
+    if (!result.ok) setFormError(result.error);
+    setBusyId(null);
   };
 
-  const routineScore = user?.RoutineScore ?? 0;
-  const comboMultiplier = user?.ComboMultiplier ?? 1.0;
-  const hasCombo = comboMultiplier > 1.0;
-  const heatmap = useMemo(() => {
-    const mocked = generateHeatmapData(routineScore);
-    const todayLevel = Math.floor((routineScore / 100) * 3);
-    mocked[89] = todayLevel;
-    return mocked;
-  }, [routineScore]);
+  if (status === 'loading' && !today) {
+    return <div className="page-shell"><div className="surface h-64 animate-pulse bg-white/[0.025]" /></div>;
+  }
 
-  const completedCount = dailyTasks.filter(t => t.IsCompleted).length;
-  const totalCount     = dailyTasks.length;
+  if (status === 'error' && !today) {
+    return (
+      <div className="page-shell">
+        <div className="surface mx-auto max-w-xl p-8 text-center">
+          <h1 className="text-xl font-bold">Could not load today&apos;s focus</h1>
+          <p className="mt-2 text-slate-400">{error}</p>
+          <button className="button-primary mt-5" onClick={fetchToday}>Try again</button>
+        </div>
+      </div>
+    );
+  }
+
+  const plan = today?.active_plan;
+  const progress = plan?.total_nodes ? Math.round((plan.completed_nodes / plan.total_nodes) * 100) : 0;
+  const habits = dailyTasks;
+  const completedHabits = habits.filter((habit) => habit.IsCompleted).length;
 
   return (
-    <div className="h-full flex flex-col font-mono text-sm overflow-hidden bg-[#050510]">
+    <div className="page-shell space-y-6">
+      <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p className="eyebrow">Daily learning</p>
+          <h1 className="page-title mt-2">Today</h1>
+          <p className="page-description mt-3">
+            {new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'long', day: 'numeric' }).format(new Date())}. Start with recall, then continue your plan.
+          </p>
+        </div>
+        {plan && <span className="status-pill">Current plan: {plan.topic}</span>}
+      </header>
 
-      <div className="shrink-0 border-b border-white/5" style={{ background: 'rgba(5,5,16,0.95)' }}>
-        <div className="flex items-center justify-between px-6 pt-4 pb-3 border-b border-white/[0.04]">
-          <div className="flex items-center gap-3">
-            <span
-              className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"
-              style={{ boxShadow: '0 0 8px rgba(34,211,238,1)' }}
-            />
-            <span className="text-[10px] tracking-[0.35em] text-cyan-500/70 font-black uppercase">
-              SYSTEM TELEMETRY // 90-DAY ROUTINE STABILITY
-            </span>
+      <section className="grid gap-3 sm:grid-cols-3" aria-label="Learning summary">
+        <MetricCard label="Reviews due" value={today?.due_review_count || 0} detail="Retrieval sessions ready now" />
+        <MetricCard label="Lessons this week" value={today?.metrics?.lessons_completed_7d || 0} detail="Completed with a reflection" />
+        <MetricCard label="Active learning days" value={today?.metrics?.active_days_30d || 0} detail="Over the last 30 days" />
+      </section>
+
+      <section className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
+        <div className="surface p-5 md:p-6">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="eyebrow">First priority</p>
+              <h2 className="mt-1 text-xl font-bold">Reviews due</h2>
+            </div>
+            <Link to="/archive" className="button-ghost">Open library</Link>
           </div>
-          <div className="flex items-center gap-6">
-            <span className="text-[10px] text-slate-600 tracking-widest uppercase">
-              OPS {completedCount}/{totalCount}
-            </span>
-            {hasCombo && (
-              <div className="flex items-center gap-2">
-                <span
-                  className="text-lg font-black text-amber-400 tabular-nums animate-pulse"
-                  style={{ textShadow: '0 0 16px rgba(251,191,36,0.7)' }}
-                >
-                  {comboMultiplier.toFixed(1)}x
-                </span>
-                <span className="text-[8px] text-amber-600 tracking-[0.15em] font-black uppercase">
-                  COMBO
-                </span>
+
+          <div className="mt-5 space-y-2.5">
+            {today?.due_reviews?.length ? today.due_reviews.map((review) => (
+              <Link
+                key={review.id}
+                to={`/archive?node=${review.id}`}
+                className="group flex min-h-16 items-center justify-between gap-4 rounded-xl border border-[var(--border-soft)] bg-white/[0.018] px-4 py-3 transition-colors hover:border-sky-300/25 hover:bg-sky-300/[0.035]"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-semibold text-slate-200 group-hover:text-white">{review.title}</p>
+                  <p className="mt-0.5 truncate text-sm text-slate-500">{review.topic}</p>
+                </div>
+                <span className="shrink-0 text-sm font-semibold text-sky-300">Review</span>
+              </Link>
+            )) : (
+              <div className="rounded-xl border border-dashed border-[var(--border)] px-5 py-8 text-center">
+                <p className="font-semibold text-slate-300">You are caught up</p>
+                <p className="mt-1 text-sm text-slate-500">Completed lessons will return here when recall is due.</p>
               </div>
             )}
-            <span
-              className="text-lg font-black text-cyan-400 tabular-nums"
-              style={{ textShadow: '0 0 12px rgba(34,211,238,0.6)' }}
-            >
-              {routineScore.toFixed(1)}%
-            </span>
           </div>
         </div>
 
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-center gap-4 mb-4">
-            <span className="text-[9px] text-slate-600 tracking-widest uppercase font-semibold">LESS</span>
-            {HEAT_COLORS.map((cls, i) => (
-              <div
-                key={i}
-                className={`w-4 h-4 rounded-sm transition-transform hover:scale-125 ${cls}`}
-                style={{ boxShadow: HEAT_GLOWS[i] }}
-              />
-            ))}
-            <span className="text-[9px] text-slate-600 tracking-widest uppercase font-semibold">MORE</span>
-          </div>
-
-          <div
-            className="grid gap-[2px]"
-            style={{ gridTemplateColumns: 'repeat(13, minmax(0, 1fr))', gridTemplateRows: 'repeat(7, minmax(0, 1fr))' }}
-          >
-            {heatmap.map((level, i) => (
-              <div
-                key={i}
-                className={`w-4 h-4 rounded-sm transition-all duration-200 cursor-default hover:scale-125 ${HEAT_COLORS[level]}`}
-                style={{ boxShadow: HEAT_GLOWS[level] }}
-                title={`Day -${90 - i}: Activity ${level}`}
-              />
-            ))}
-          </div>
-
-          <div className="flex justify-between mt-2 px-[1px]">
-            {['90D', '78D', '65D', '52D', '39D', '26D', '13D', 'NOW'].map(label => (
-              <span key={label} className="text-[8px] text-slate-700 tracking-wider font-mono">{label}</span>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <form
-        onSubmit={handleCreate}
-        className="shrink-0 flex items-center gap-0 border-b border-white/5"
-        style={{ background: 'rgba(0,0,0,0.6)' }}
-      >
-        <span
-          className="pl-6 pr-3 text-cyan-400 font-black text-base select-none"
-          style={{ textShadow: '0 0 10px rgba(34,211,238,0.8)' }}
-        >
-          &gt;
-        </span>
-
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="AWAITING COMMAND..."
-          className="flex-1 bg-transparent border-none py-3.5 text-cyan-50 placeholder-slate-700 outline-none font-mono text-sm tracking-wider"
-          spellCheck="false"
-          autoComplete="off"
-        />
-
-        <div className="flex items-center gap-px px-4">
-          {Object.entries(TASK_TYPE_STYLES).map(([key, s]) => {
-            const isActive = type === key;
-            return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setType(key)}
-                className={`px-3 py-1.5 text-[10px] font-black tracking-[0.2em] border transition-all duration-200 ${
-                  isActive
-                    ? `${s.color} ${s.borderColor} bg-white/[0.05]`
-                    : 'text-slate-600 border-slate-800 hover:border-slate-600 hover:text-slate-400'
-                }`}
-                style={{ boxShadow: isActive ? `0 0 10px ${s.glowColor}, inset 0 0 8px ${s.glowColor.replace('0.35', '0.08')}` : 'none' }}
-              >
-                {key}
-              </button>
-            );
-          })}
-        </div>
-
-        <button
-          type="submit"
-          disabled={creating || !title.trim()}
-          className="h-full px-6 py-3.5 text-[10px] font-black tracking-[0.3em] uppercase border-l border-white/5 text-cyan-400 hover:bg-cyan-500/5 transition-all disabled:opacity-20 disabled:cursor-not-allowed"
-          style={{ textShadow: title.trim() ? '0 0 8px rgba(34,211,238,0.6)' : 'none' }}
-        >
-          {creating ? 'SYNTH...' : 'EXEC'}
-        </button>
-      </form>
-
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="shrink-0 flex items-center justify-between px-6 py-2 border-b border-white/[0.04] bg-black/30 select-none pointer-events-none">
-          <span className="text-[9px] text-slate-600 tracking-[0.35em] uppercase font-bold">
-            EXECUTION LOG // OUTSTANDING OPERATIONS
-          </span>
-          <span className="text-[9px] text-slate-600 tracking-[0.35em] uppercase font-bold">
-            STREAK
-          </span>
-        </div>
-
-        <div className="flex-1 overflow-y-auto hidden-scrollbar">
-          {dailyTasks.length === 0 && (
-            <div className="flex items-center justify-center h-32">
-              <span className="text-[10px] text-slate-700 tracking-[0.3em] uppercase font-mono">
-                [ NO OPERATIONS PENDING ]
-              </span>
+        <div className="surface p-5 md:p-6">
+          <p className="eyebrow">Continue learning</p>
+          {today?.next_lesson ? (
+            <div className="mt-4 flex h-[calc(100%-2rem)] flex-col">
+              <p className="text-sm font-medium text-slate-500">{today.next_lesson.topic}</p>
+              <h2 className="mt-2 text-2xl font-bold tracking-tight">{today.next_lesson.title}</h2>
+              <p className="mt-3 text-sm leading-6 text-slate-400">{today.next_lesson.codex?.learning_objective || today.next_lesson.description}</p>
+              <div className="mt-5 rounded-xl border border-violet-300/15 bg-violet-300/[0.04] p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-violet-300">Practice</p>
+                <p className="mt-2 text-sm text-slate-300">{today.next_lesson.codex?.practical_task}</p>
+              </div>
+              <Link to={`/forge?constellation=${today.next_lesson.constellation_id}&node=${today.next_lesson.id}`} className="button-primary mt-5 w-full sm:w-fit">Open lesson</Link>
+            </div>
+          ) : plan ? (
+            <div className="mt-6 rounded-xl border border-emerald-300/15 bg-emerald-300/[0.035] p-5">
+              <p className="font-semibold text-emerald-200">Plan completed</p>
+              <p className="mt-1 text-sm text-slate-400">Keep up with scheduled reviews or start a new learning plan.</p>
+              <Link to="/forge" className="button-secondary mt-4">Create another plan</Link>
+            </div>
+          ) : (
+            <div className="mt-6">
+              <h2 className="text-xl font-bold">Create your first learning plan</h2>
+              <p className="mt-2 text-sm text-slate-400">Choose a topic and Nebula will organize it into prerequisite-based lessons.</p>
+              <Link to="/forge" className="button-primary mt-5">Go to Forge</Link>
             </div>
           )}
+        </div>
+      </section>
 
-          {dailyTasks.map((task) => {
-            const isDone  = task.IsCompleted;
-            const style   = TASK_TYPE_STYLES[task.Type] || TASK_TYPE_STYLES.INT;
-            const streak  = String(task.Streak || 0).padStart(2, '0');
+      {plan && (
+        <section className="surface p-5 md:p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="eyebrow">Current plan</p>
+              <h2 className="mt-1 text-xl font-bold">{plan.topic}</h2>
+            </div>
+            <p className="text-sm text-slate-400">{plan.completed_nodes} of {plan.total_nodes} lessons completed</p>
+          </div>
+          <div className="progress-track mt-5" role="progressbar" aria-label={`${plan.topic} completion`} aria-valuenow={progress} aria-valuemin="0" aria-valuemax="100">
+            <div className="progress-fill" style={{ width: `${progress}%` }} />
+          </div>
+        </section>
+      )}
 
+      <section className="surface p-5 md:p-6">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="eyebrow">Real activity</p>
+            <h2 className="mt-1 text-xl font-bold">Last 30 days</h2>
+          </div>
+          <p className="text-sm text-slate-500">Lessons, reviews, and habits recorded by the app</p>
+        </div>
+        <div className="mt-5"><ActivityGrid days={today?.activity_by_day || []} /></div>
+      </section>
+
+      <section className="surface p-5 md:p-6">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="eyebrow">Optional support</p>
+            <h2 className="mt-1 text-xl font-bold">Habits</h2>
+          </div>
+          <p className="text-sm text-slate-500">{completedHabits}/{habits.length} completed today</p>
+        </div>
+
+        <form onSubmit={handleCreate} className="mt-5 grid gap-3 lg:grid-cols-[1fr_auto_auto]">
+          <div>
+            <label htmlFor="habit-title" className="field-label">New habit</label>
+            <input id="habit-title" className="input-control" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Example: Read for 20 minutes" maxLength={120} />
+          </div>
+          <fieldset>
+            <legend className="field-label">Category</legend>
+            <div className="flex min-h-11 overflow-hidden rounded-xl border border-[var(--border)] bg-[#0c111a]">
+              {Object.entries(habitTypes).map(([key, item]) => (
+                <label key={key} className={`flex cursor-pointer items-center px-3 text-sm ${type === key ? 'bg-white/[0.07] text-white' : 'text-slate-500'}`}>
+                  <input className="sr-only" type="radio" name="habit-type" value={key} checked={type === key} onChange={() => setType(key)} />
+                  {item.label}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <div className="flex items-end"><button className="button-secondary w-full lg:w-auto" disabled={creating || !title.trim()}>{creating ? 'Adding…' : 'Add habit'}</button></div>
+        </form>
+
+        {formError && <p className="mt-3 text-sm text-rose-300" role="alert">{formError}</p>}
+
+        <div className="mt-5 divide-y divide-[var(--border-soft)]">
+          {habits.length ? habits.map((habit) => {
+            const category = habitTypes[habit.Type] || habitTypes.INT;
             return (
-              <div
-                key={task.ID}
-                className={`group flex items-center gap-4 px-6 py-2 border-b border-white/[0.04] transition-all duration-150 ${
-                  isDone ? 'opacity-40' : 'hover:bg-white/[0.21] hover:shadow-[inset_0_0_20px_rgba(34,211,238,0.08)]'
-                }`}
-              >
+              <div key={habit.ID} className="flex min-h-16 items-center gap-3 py-3">
                 <button
-                  onClick={() => handleComplete(task)}
-                  disabled={isDone || completing === task.ID}
-                  className={`shrink-0 w-5 h-5 border rounded transition-all duration-150 flex items-center justify-center ${
-                    isDone
-                      ? 'bg-cyan-400 border-cyan-400 shadow-[inset_0_0_6px_rgba(34,211,238,0.5)]'
-                      : 'bg-transparent border-slate-600 hover:border-cyan-500 hover:shadow-[0_0_10px_rgba(34,211,238,0.7)]'
-                  }`}
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${habit.IsCompleted ? 'border-emerald-300/30 bg-emerald-300/10 text-emerald-200' : 'border-[var(--border)] text-slate-500 hover:border-sky-300/30 hover:text-sky-200'}`}
+                  onClick={() => handleComplete(habit)}
+                  disabled={habit.IsCompleted || busyId === habit.ID}
+                  aria-label={habit.IsCompleted ? `${habit.Title} completed` : `Complete ${habit.Title}`}
                 >
-                  {isDone && (
-                    <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                      <path d="M1 4l2 2 4-4" stroke="#050510" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  )}
+                  {habit.IsCompleted ? '✓' : '○'}
                 </button>
-
-                <span
-                  className={`shrink-0 text-[9px] font-black tracking-[0.25em] w-8 ${style.color}`}
-                  style={{ textShadow: isDone ? 'none' : `0 0 8px ${style.glowColor}` }}
-                >
-                  {task.Type}
-                </span>
-
-                <span
-                  className={`flex-1 truncate text-xs tracking-wider ${
-                    isDone ? 'line-through text-slate-600' : 'text-slate-400'
-                  }`}
-                >
-                  {task.Title}
-                </span>
-
-                <span
-                  className={`shrink-0 text-[10px] font-black tracking-widest tabular-nums ${
-                    isDone ? 'text-slate-600' : 'text-amber-400'
-                  }`}
-                  style={{ textShadow: isDone ? 'none' : '0 0 12px rgba(251,191,36,0.8)' }}
-                >
-                  🔥 STREAK: {streak}
-                </span>
-
-                <button
-                  onClick={() => handleDelete(task.ID)}
-                  disabled={deleting === task.ID}
-                  className="shrink-0 opacity-0 group-hover:opacity-100 text-[9px] text-red-500/40 hover:text-red-500 hover:shadow-[0_0_8px_rgba(239,68,68,0.5)] tracking-widest transition-all font-mono duration-100"
-                >
-                  [DEL]
-                </button>
+                <span className={`h-2 w-2 rounded-full ${category.color}`} />
+                <div className="min-w-0 flex-1">
+                  <p className={`truncate font-medium ${habit.IsCompleted ? 'text-slate-500 line-through' : 'text-slate-200'}`}>{habit.Title}</p>
+                  <p className="mt-0.5 text-xs text-slate-600">{category.label} · {habit.Streak || 0} day streak</p>
+                </div>
+                <button className="button-ghost min-h-10 px-3 text-rose-300/70" onClick={() => handleDelete(habit.ID)} disabled={busyId === habit.ID} aria-label={`Delete ${habit.Title}`}>Delete</button>
               </div>
             );
-          })}
+          }) : <p className="py-8 text-center text-sm text-slate-500">No habits yet. Learning tasks above work independently.</p>}
         </div>
-
-        <div className="shrink-0 flex items-center gap-6 px-6 py-2 border-t border-white/[0.04] bg-black/20 select-none pointer-events-none">
-          <span className="text-[9px] text-slate-700 font-mono tracking-widest">
-            INT: {user?.StatINT ?? 10}
-          </span>
-          <span className="text-[9px] text-slate-700 font-mono tracking-widest">
-            STR: {user?.StatSTR ?? 10}
-          </span>
-          <span className="text-[9px] text-slate-700 font-mono tracking-widest">
-            AGI: {user?.StatAGI ?? 10}
-          </span>
-          <span className="ml-auto text-[9px] text-slate-700 font-mono tracking-widest">
-            NEBULA OS v4.1 // TERMINAL SUBSYSTEM
-          </span>
-        </div>
-      </div>
+      </section>
     </div>
   );
 }

@@ -1,209 +1,236 @@
 import { create } from 'zustand';
-import { API } from '../api';
+import { apiRequest } from '../api';
+
+const errorMessage = (error) => error?.message || 'Something went wrong. Please try again.';
+let learningRequestID = 0;
+let plansRequestID = 0;
+let archiveRequestID = 0;
 
 const useStore = create((set, get) => ({
   user: null,
+  profileStatus: 'idle',
+  profileError: null,
   dailyTasks: [],
+  dailyStatus: 'idle',
+  dailyError: null,
+  archiveData: [],
+  archiveStatus: 'idle',
+  archiveError: null,
+  plans: [],
+  plansStatus: 'idle',
+  learningToday: null,
+  learningStatus: 'idle',
+  learningError: null,
+  graphData: null,
+  activeNode: null,
 
   fetchProfile: async () => {
+    set({ profileStatus: 'loading', profileError: null });
     try {
-      const res = await fetch(`${API}/profile`);
-      const data = await res.json();
-      set({ user: data });
-    } catch (e) {
-      console.error('Failed to fetch profile', e);
+      const user = await apiRequest('/profile');
+      set({ user, profileStatus: 'success' });
+      return { ok: true, data: user };
+    } catch (error) {
+      set({ profileStatus: 'error', profileError: errorMessage(error) });
+      return { ok: false, error: errorMessage(error) };
+    }
+  },
+
+  fetchLearningToday: async () => {
+	const requestID = ++learningRequestID;
+    set({ learningStatus: 'loading', learningError: null });
+    try {
+      const learningToday = await apiRequest('/learning/today');
+	  if (requestID !== learningRequestID) return { ok: false, stale: true };
+      set({
+        learningToday,
+        learningStatus: 'success',
+        plans: learningToday.plans || [],
+        plansStatus: 'success',
+        dailyTasks: learningToday.habits || [],
+        dailyStatus: 'success',
+      });
+      return { ok: true, data: learningToday };
+    } catch (error) {
+	  if (requestID !== learningRequestID) return { ok: false, stale: true };
+      set({ learningStatus: 'error', learningError: errorMessage(error) });
+      return { ok: false, error: errorMessage(error) };
+    }
+  },
+
+  fetchPlans: async () => {
+	const requestID = ++plansRequestID;
+    set({ plansStatus: 'loading' });
+    try {
+      const plans = await apiRequest('/constellations');
+	  if (requestID !== plansRequestID) return { ok: false, stale: true };
+      set({ plans: Array.isArray(plans) ? plans : [], plansStatus: 'success' });
+      return { ok: true, data: plans };
+    } catch (error) {
+	  if (requestID !== plansRequestID) return { ok: false, stale: true };
+      set({ plansStatus: 'error' });
+      return { ok: false, error: errorMessage(error) };
     }
   },
 
   fetchDailyTasks: async () => {
+    set({ dailyStatus: 'loading', dailyError: null });
     try {
-      const res = await fetch(`${API}/dailies`);
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        set({ dailyTasks: data });
-      }
-    } catch (e) {
-      console.error('Failed to fetch dailies', e);
+      const dailyTasks = await apiRequest('/dailies');
+      set({ dailyTasks: Array.isArray(dailyTasks) ? dailyTasks : [], dailyStatus: 'success' });
+      return { ok: true, data: dailyTasks };
+    } catch (error) {
+      set({ dailyStatus: 'error', dailyError: errorMessage(error) });
+      return { ok: false, error: errorMessage(error) };
+    }
+  },
+
+  fetchArchive: async () => {
+	const requestID = ++archiveRequestID;
+    set({ archiveStatus: 'loading', archiveError: null });
+    try {
+      const archiveData = await apiRequest('/archive');
+	  if (requestID !== archiveRequestID) return { ok: false, stale: true };
+      set({ archiveData: Array.isArray(archiveData) ? archiveData : [], archiveStatus: 'success' });
+      return { ok: true, data: archiveData };
+    } catch (error) {
+	  if (requestID !== archiveRequestID) return { ok: false, stale: true };
+      set({ archiveStatus: 'error', archiveError: errorMessage(error) });
+      return { ok: false, error: errorMessage(error) };
     }
   },
 
   updatePhysics: async (height, weight) => {
     try {
-      const res = await fetch(`${API}/profile/physics`, {
+      const user = await apiRequest('/profile/physics', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ height: parseFloat(height), weight: parseFloat(weight) }),
+        body: JSON.stringify({ height: Number(height), weight: Number(weight) }),
       });
-      const data = await res.json();
-      if (res.ok) set({ user: data });
-      return { ok: res.ok, data };
-    } catch (e) {
-      console.error('Failed to update physics', e);
-      return { ok: false };
+      set({ user });
+      return { ok: true, data: user };
+    } catch (error) {
+      return { ok: false, error: errorMessage(error), data: error.data };
     }
   },
 
   completeDaily: async (taskId) => {
     try {
-      const res = await fetch(`${API}/dailies/${taskId}/complete`, { method: 'POST' });
-      const data = await res.json();
-      if (res.ok) {
-        set({ user: data.user });
-        // Update the task in local state with streak from response
-        const returnedTask = data.task;
-        const tasks = get().dailyTasks.map((t) =>
-          t.ID === taskId
-            ? { ...t, IsCompleted: true, Streak: returnedTask?.Streak ?? t.Streak + 1 }
-            : t
-        );
-        set({ dailyTasks: tasks });
-      }
-      return { ok: res.ok, data };
-    } catch (e) {
-      console.error('Failed to complete daily', e);
-      return { ok: false };
+      const data = await apiRequest(`/dailies/${taskId}/complete`, { method: 'POST' });
+      set({
+        user: data.user,
+        dailyTasks: get().dailyTasks.map((task) => task.ID === taskId ? data.task : task),
+      });
+      get().fetchLearningToday();
+      return { ok: true, data };
+    } catch (error) {
+      return { ok: false, error: errorMessage(error), data: error.data };
     }
   },
 
   createDailyTask: async (taskData) => {
     try {
-      const res = await fetch(`${API}/dailies`, {
+      const task = await apiRequest('/dailies', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(taskData),
       });
-      const data = await res.json();
-      if (res.ok) {
-        set({ dailyTasks: [...get().dailyTasks, data] });
-      }
-      return { ok: res.ok, data };
-    } catch (e) {
-      console.error('Failed to create daily', e);
-      return { ok: false };
+      set({ dailyTasks: [...get().dailyTasks, task] });
+      get().fetchLearningToday();
+      return { ok: true, data: task };
+    } catch (error) {
+      return { ok: false, error: errorMessage(error), data: error.data };
     }
   },
 
   deleteDailyTask: async (id) => {
     try {
-      const res = await fetch(`${API}/dailies/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        set({ dailyTasks: get().dailyTasks.filter((t) => t.ID !== id) });
-      }
-      return { ok: res.ok };
-    } catch (e) {
-      console.error('Failed to delete daily', e);
-      return { ok: false };
+      await apiRequest(`/dailies/${id}`, { method: 'DELETE' });
+      set({ dailyTasks: get().dailyTasks.filter((task) => task.ID !== id) });
+      get().fetchLearningToday();
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, error: errorMessage(error), data: error.data };
     }
   },
 
-  setDailyTasks: (tasks) => set({ dailyTasks: tasks }),
+  setGraphData: (graphData) => set({ graphData }),
+  setActiveNode: (activeNode) => set({ activeNode }),
 
-  graphData: null,
-  setGraphData: (data) => set({ graphData: data }),
-
-  activeNode: null,
-  setActiveNode: (node) => set({ activeNode: node }),
-
-  verifyNode: async (nodeId, shard) => {
+  completeNode: async (nodeId, reflection) => {
     try {
-      const res = await fetch(`${API}/nodes/${nodeId}/verify`, {
+      const data = await apiRequest(`/nodes/${nodeId}/complete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ shard }),
+        body: JSON.stringify({ shard: reflection }),
       });
-      const data = await res.json();
-      if (res.ok) {
-        set({ user: data.user });
-        const gd = get().graphData;
-        if (gd) {
-          // Mutate in-place to preserve d3-force x/y/vx/vy positions
-          let targetNode = null;
-          gd.nodes.forEach((n) => {
-            if (n.id === String(nodeId) || n.id === nodeId) {
-              n.unlocked = true;
-              n.knowledge_shard = shard;
-              targetNode = n;
-            }
-          });
-          set({ graphData: { nodes: [...gd.nodes], links: [...gd.links] } });
-
-          if (targetNode) {
-            set({ activeNode: { ...targetNode } });
+      const graphData = get().graphData;
+      let activeNode = null;
+      if (graphData) {
+        const nodes = graphData.nodes.map((node) => {
+          if (String(node.id) === String(nodeId)) {
+            activeNode = {
+              ...node,
+              unlocked: true,
+              available: false,
+              status: 'completed',
+              knowledge_shard: reflection,
+              learned_at: data.node.LearnedAt,
+              next_review_at: data.node.NextReviewAt,
+            };
+            return activeNode;
           }
-        }
+          if (String(node.parent_id) === String(nodeId) && node.status === 'blocked') {
+            return { ...node, available: true, status: 'available' };
+          }
+          return node;
+        });
+        set({ graphData: { nodes, links: [...graphData.links] }, activeNode });
       }
-      return { ok: res.ok, data };
-    } catch (e) {
-      console.error('Failed to verify node', e);
-      return { ok: false };
+      set({ user: data.user });
+      get().fetchLearningToday();
+      get().fetchPlans();
+      get().fetchArchive();
+      return { ok: true, data };
+    } catch (error) {
+      return { ok: false, error: errorMessage(error), data: error.data };
     }
-   },
+  },
 
-   reviewNode: async (nodeId, quality) => {
-     try {
-       const res = await fetch(`${API}/nodes/${nodeId}/review`, {
-         method: 'POST',
-         headers: { 'Content-Type': 'application/json' },
-         body: JSON.stringify({ quality }),
-       });
-       const data = await res.json();
-       if (res.ok) {
-         set({ user: data.user });
-         // Update the specific node's review metadata in archiveData
-         const archiveData = get().archiveData;
-         const updatedArchive = archiveData.map(c => ({
-           ...c,
-           nodes: c.nodes.map(n =>
-             n.ID === nodeId 
-               ? { 
-                   ...n, 
-                   NextReviewAt: data.node.NextReviewAt, 
-                   ReviewCount: data.node.ReviewCount 
-                 } 
-               : n
-           ),
-         }));
-         set({ archiveData: updatedArchive });
-       }
-       return { ok: res.ok, data };
-     } catch (e) {
-       console.error('Failed to review node', e);
-       return { ok: false };
-     }
-   },
+  verifyNode: async (nodeId, reflection) => get().completeNode(nodeId, reflection),
 
-   deleteConstellation: async (constellationId) => {
-     try {
-       const res = await fetch(`${API}/constellations/${constellationId}`, {
-         method: 'DELETE',
-         headers: { 'Content-Type': 'application/json' },
-       });
-       const data = await res.json();
-       if (res.ok) {
-         // Refetch archive to update UI
-         const archiveRes = await fetch(`${API}/archive`);
-         const archiveData = await archiveRes.json();
-         if (Array.isArray(archiveData)) {
-           set({ archiveData });
-         }
-       }
-       return { ok: res.ok, data };
-     } catch (e) {
-       console.error('Failed to delete constellation', e);
-       return { ok: false };
-     }
-   },
-
-   archiveData: [],
-  fetchArchive: async () => {
+  reviewNode: async (nodeId, quality) => {
     try {
-      const res = await fetch(`${API}/archive`);
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        set({ archiveData: data });
-      }
-    } catch (e) {
-      console.error('Failed to fetch archive', e);
+      const data = await apiRequest(`/nodes/${nodeId}/review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quality }),
+      });
+      const archiveData = get().archiveData.map((constellation) => ({
+        ...constellation,
+        nodes: constellation.nodes.map((node) => node.ID === nodeId ? data.node : node),
+      }));
+      set({ archiveData, user: data.user });
+      get().fetchLearningToday();
+      get().fetchPlans();
+      return { ok: true, data };
+    } catch (error) {
+      return { ok: false, error: errorMessage(error), data: error.data };
+    }
+  },
+
+  deleteConstellation: async (constellationId) => {
+    try {
+      await apiRequest(`/constellations/${constellationId}`, { method: 'DELETE' });
+      set({
+        graphData: null,
+        activeNode: null,
+        plans: get().plans.filter((plan) => plan.id !== constellationId),
+      });
+      await Promise.all([get().fetchArchive(), get().fetchLearningToday(), get().fetchPlans()]);
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, error: errorMessage(error), data: error.data };
     }
   },
 }));

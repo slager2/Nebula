@@ -10,7 +10,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:star-click": "node scripts/star-click-smoke.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.1",
@@ -18,7 +19,6 @@
     "react-dom": "^19.2.4",
     "react-force-graph-2d": "^1.29.1",
     "react-router-dom": "7.18.2",
-    "recharts": "^3.8.0",
     "tailwindcss": "^4.2.1",
     "zustand": "^5.0.11"
   },
@@ -31,6 +31,7 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.4.0",
+    "playwright-core": "^1.62.1",
     "vite": "^6.0.0"
   }
 }

@@ -23,12 +23,15 @@ func main() {
 
 	// Connect to PostgreSQL & Migrate
 	database.Connect()
+	if err := services.RecalculateUserProgress(database.DB, 1); err != nil {
+		log.Printf("Could not refresh persisted progress: %v", err)
+	}
 
 	// Initialize background jobs
 	services.InitCronJobs(database.DB)
 
 	app := fiber.New(fiber.Config{
-		AppName: "Cosmic Skill Tree MVP",
+		AppName: "Nebula Learning API",
 	})
 	app.Use(logger.New())
 	allowedOrigins := os.Getenv("CORS_ALLOWED_ORIGINS")
@@ -49,12 +52,15 @@ func main() {
 	// Universe & Archive
 	api.Get("/universe", handlers.GetUniverse)
 	api.Get("/archive", handlers.GetArchive)
+	api.Get("/learning/today", handlers.GetLearningToday)
 
 	// AI Generative Tree endpoints
+	api.Get("/constellations", handlers.ListConstellations)
 	api.Post("/constellations/generate", handlers.GenerateConstellation)
 	api.Get("/constellations/:id", handlers.GetConstellation)
 	api.Delete("/constellations/:id", handlers.DeleteConstellation)
 	api.Post("/nodes/:id/verify", handlers.VerifyNode)
+	api.Post("/nodes/:id/complete", handlers.VerifyNode)
 	api.Post("/nodes/:id/review", handlers.ReviewNode)
 
 	// Econ/Routine endpoints

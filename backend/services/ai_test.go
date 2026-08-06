@@ -15,9 +15,12 @@ func validLLMNodes() []LLMNodeResponse {
 			Title:       "Node",
 			Description: "Node description",
 			Codex: LLMAIPayload{
-				Overview:      "Overview",
-				KeyConcepts:   []string{"One", "Two", "Three"},
-				PracticalTask: "Complete a task",
+				Overview:           "Overview",
+				KeyConcepts:        []string{"One", "Two", "Three"},
+				PracticalTask:      "Complete a task",
+				LearningObjective:  "Explain the concept",
+				CompletionCriteria: "Complete and explain the task",
+				RecallPrompt:       "What is the concept?",
 			},
 		}
 		if i > 0 {
@@ -70,10 +73,12 @@ func TestValidateLLMNodes(t *testing.T) {
 		{
 			name: "cycle",
 			mutate: func(nodes []LLMNodeResponse) {
-				parentID := uint(10)
-				nodes[0].ParentID = &parentID
+				parentNine := uint(9)
+				parentTen := uint(10)
+				nodes[8].ParentID = &parentTen
+				nodes[9].ParentID = &parentNine
 			},
-			wantErr: "exactly one root",
+			wantErr: "cycle detected",
 		},
 		{
 			name: "empty codex",

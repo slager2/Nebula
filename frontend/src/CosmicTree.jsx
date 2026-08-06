@@ -1,230 +1,201 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
 import useStore from './store/useStore';
-import { API } from './api';
+import { apiRequest } from './api';
 
-const drawStar = (ctx, cx, cy, spikes, outerRadius, innerRadius) => {
-  let rot = (Math.PI / 2) * 3;
-  let x = cx;
-  let y = cy;
-  let step = Math.PI / spikes;
-
+function drawStar(ctx, x, y, outerRadius, innerRadius) {
+  let angle = -Math.PI / 2;
+  const step = Math.PI / 5;
   ctx.beginPath();
-  ctx.moveTo(cx, cy - outerRadius);
-  for (let i = 0; i < spikes; i++) {
-    x = cx + Math.cos(rot) * outerRadius;
-    y = cy + Math.sin(rot) * outerRadius;
-    ctx.lineTo(x, y);
-    rot += step;
-
-    x = cx + Math.cos(rot) * innerRadius;
-    y = cy + Math.sin(rot) * innerRadius;
-    ctx.lineTo(x, y);
-    rot += step;
+  for (let i = 0; i < 10; i += 1) {
+    const radius = i % 2 === 0 ? outerRadius : innerRadius;
+    const px = x + Math.cos(angle) * radius;
+    const py = y + Math.sin(angle) * radius;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+    angle += step;
   }
-  ctx.lineTo(cx, cy - outerRadius);
   ctx.closePath();
   ctx.fill();
+}
+
+const nodePalette = {
+  completed: { fill: '#86efac', glow: 'rgba(74, 222, 128, 0.2)', label: 'Completed' },
+  available: { fill: '#7dd3fc', glow: 'rgba(56, 189, 248, 0.24)', label: 'Available' },
+  blocked: { fill: '#64748b', glow: 'rgba(100, 116, 139, 0.12)', label: 'Blocked' },
 };
 
-export default function CosmicTree({ constellationId, onNodeClick }) {
-  const fgRef = useRef();
-  const containerRef = useRef();
-  const graphData = useStore((s) => s.graphData);
-  const setGraphData = useStore((s) => s.setGraphData);
-  const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
+export default function CosmicTree({ constellationId, initialNodeId, onNodeClick }) {
+  const graphRef = useRef(null);
+  const containerRef = useRef(null);
+  const graphData = useStore((state) => state.graphData);
+  const setGraphData = useStore((state) => state.setGraphData);
+  const [dimensions, setDimensions] = useState({ width: 800, height: 640 });
+  const [loadedId, setLoadedId] = useState(null);
+  const [failedId, setFailedId] = useState(null);
   const [hoveredNode, setHoveredNode] = useState(null);
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-  const [loadedConstellationId, setLoadedConstellationId] = useState(null);
-  const [failedConstellationId, setFailedConstellationId] = useState(null);
+  const [showList, setShowList] = useState(false);
 
-  // Handle container resize
   useEffect(() => {
-    const updateDimensions = () => {
-      if (containerRef.current) {
-        setDimensions({
-          width: containerRef.current.clientWidth,
-          height: containerRef.current.clientHeight
-        });
-      }
-    };
-    
-    const observer = new ResizeObserver(updateDimensions);
+    const observer = new ResizeObserver(([entry]) => {
+      setDimensions({
+        width: Math.max(320, Math.floor(entry.contentRect.width)),
+        height: Math.max(460, Math.floor(entry.contentRect.height)),
+      });
+    });
     if (containerRef.current) observer.observe(containerRef.current);
-    updateDimensions();
-
     return () => observer.disconnect();
   }, []);
 
-  const handleMouseMove = useCallback((e) => {
-    if (containerRef.current) {
-      const rect = containerRef.current.getBoundingClientRect();
-      setMousePos({
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
+  useEffect(() => {
+    if (!constellationId) return undefined;
+    const controller = new AbortController();
+    apiRequest(`/constellations/${constellationId}`, { signal: controller.signal })
+      .then((data) => {
+        setGraphData({ nodes: data.nodes || [], links: data.links || [] });
+        setLoadedId(String(constellationId));
+        setFailedId(null);
+        const initialNode = data.nodes?.find((node) => String(node.id) === String(initialNodeId));
+        if (initialNode) onNodeClick?.(initialNode);
+      })
+      .catch((error) => {
+        if (error.name === 'AbortError') return;
+        setFailedId(String(constellationId));
       });
+    return () => controller.abort();
+  }, [constellationId, initialNodeId, onNodeClick, setGraphData]);
+
+  useEffect(() => {
+    if (!graphRef.current || loadedId !== String(constellationId)) return;
+    const charge = graphRef.current.d3Force('charge');
+    if (charge) charge.strength(-420);
+    const link = graphRef.current.d3Force('link');
+    if (link) link.distance(90);
+  }, [constellationId, loadedId, graphData]);
+
+  const paintNode = useCallback((node, ctx, globalScale) => {
+    const palette = nodePalette[node.status] || nodePalette.blocked;
+    const hovered = hoveredNode?.id === node.id;
+    const size = hovered ? 8 : 6;
+
+    ctx.beginPath();
+    ctx.arc(node.x, node.y, size * 2.1, 0, Math.PI * 2);
+    ctx.fillStyle = palette.glow;
+    ctx.fill();
+
+    if (node.status === 'available') {
+      ctx.beginPath();
+      ctx.arc(node.x, node.y, size * 1.55, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(125, 211, 252, 0.46)';
+      ctx.lineWidth = 1 / globalScale;
+      ctx.stroke();
     }
+
+    ctx.fillStyle = palette.fill;
+    drawStar(ctx, node.x, node.y, size, size * 0.45);
+
+    if (globalScale > 1.25 || hovered) {
+      ctx.font = `${hovered ? 600 : 500} ${12 / globalScale}px Inter, sans-serif`;
+      ctx.fillStyle = hovered ? '#f8fafc' : '#aab6c7';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText(node.name, node.x, node.y + (14 / globalScale));
+    }
+  }, [hoveredNode]);
+
+  const paintPointerArea = useCallback((node, color, ctx, globalScale) => {
+    const radius = Math.max(10, 22 / globalScale);
+    ctx.beginPath();
+    ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
   }, []);
 
-  // Fetch constellation data — no dummy data fallback
-  useEffect(() => {
-    if (!constellationId) return;
-    const controller = new AbortController();
-    
-    fetch(`${API}/constellations/${constellationId}`, { signal: controller.signal })
-      .then((res) => {
-         if (!res.ok) throw new Error("API not ready");
-         return res.json();
-      })
-      .then((data) => {
-        if (data.nodes && data.nodes.length > 0) {
-          setGraphData({ nodes: data.nodes, links: data.links || [] });
-          setLoadedConstellationId(constellationId);
-          setFailedConstellationId(null);
-        } else {
-          setFailedConstellationId(constellationId);
-          setGraphData(null);
-        }
-      })
-      .catch(err => {
-        if (err.name === 'AbortError') return;
-        console.warn("Backend unavailable or tree empty.", err);
-        setFailedConstellationId(constellationId);
-        setGraphData(null);
-      });
+  const selectNode = useCallback((node) => {
+    onNodeClick?.(node);
+    graphRef.current?.centerAt(node.x, node.y, 350);
+    graphRef.current?.zoom(2.2, 350);
+  }, [onNodeClick]);
 
-    return () => controller.abort();
-  }, [constellationId, setGraphData]);
-
-  // Настройка физики графа: расталкиваем ноды и удлиняем связи
-  useEffect(() => {
-    try {
-      if (fgRef.current) {
-        const charge = fgRef.current.d3Force('charge');
-        if (charge) charge.strength(-1200);
-        const link = fgRef.current.d3Force('link');
-        if (link) link.distance(120);
-      }
-    } catch (e) {
-      console.warn('Could not configure graph physics:', e);
-    }
-  }, [graphData]);
-
-  // No data — show error state instead of dummy data
-  if (failedConstellationId === constellationId || loadedConstellationId !== constellationId || !graphData) {
-    return (
-      <div
-        ref={containerRef}
-        className="w-full h-full relative overflow-hidden bg-[#0B0C10] flex items-center justify-center"
-        style={{
-          backgroundImage: 'radial-gradient(circle at center, #1b0f3a 0%, #0B0C10 70%)'
-        }}
-      >
-        <div className="text-center space-y-3">
-          <div className="text-red-500 font-mono text-sm animate-pulse tracking-widest">
-            UPLINK SEVERED // NO CONSTELLATION DATA
-          </div>
-          <div className="text-slate-600 font-mono text-xs">
-            Generate a skill tree from the side panel to initialize the Forge
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const isLoading = loadedId !== String(constellationId) && failedId !== String(constellationId);
+  const hasFailed = failedId === String(constellationId);
 
   return (
-    <div 
-      ref={containerRef} 
-      className="w-full h-full relative overflow-hidden bg-[#0B0C10]" 
-      onMouseMove={handleMouseMove}
-      style={{
-        backgroundImage: 'radial-gradient(circle at center, #1b0f3a 0%, #0B0C10 70%)'
-      }}
-    >
-      <ForceGraph2D
-        ref={fgRef}
-        width={dimensions.width}
-        height={dimensions.height}
-        graphData={graphData}
-        backgroundColor="rgba(0,0,0,0)"
-        nodeLabel=""
-        
-        linkColor={() => 'rgba(0, 255, 255, 0.4)'}
-        linkWidth={() => 1.5}
-        linkDirectionalParticles={0}
-        linkDirectionalParticleSpeed={0.005}
-        
-        nodeCanvasObject={(node, ctx) => {
-          const isHovered = hoveredNode && hoveredNode.id === node.id;
-          const size = isHovered ? 8 : 5;
-          
-          // Цвета: разблокировано = белая звезда, заблокировано = фиолетовая
-          const starColor = node.unlocked ? '#ffffff' : '#6b21a8';
-          // Свечение: циановое для открытых, тускло-фиолетовое для закрытых
-          const glowColor = node.unlocked ? 'rgba(0, 255, 255, 0.15)' : 'rgba(126, 34, 206, 0.15)';
+    <div ref={containerRef} className="star-field relative h-full min-h-[520px] w-full overflow-hidden">
+      <div className="absolute left-4 top-4 z-20 flex gap-2">
+        <button className="button-secondary min-h-10 px-3" onClick={() => setShowList((value) => !value)} aria-expanded={showList}>
+          {showList ? 'Hide lesson list' : 'Lesson list'}
+        </button>
+        <button className="button-ghost min-h-10 px-3" onClick={() => graphRef.current?.zoomToFit(350, 64)}>Fit map</button>
+      </div>
 
-          // 1. Оптимизированное свечение (маленький прозрачный круг вместо тяжелого shadowBlur)
-          ctx.beginPath();
-          ctx.arc(node.x, node.y, size * 1.8, 0, 2 * Math.PI, false);
-          ctx.fillStyle = glowColor;
-          ctx.fill();
+      {isLoading && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#090d15]">
+          <div className="text-center"><div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-sky-300/20 border-t-sky-300" /><p className="mt-3 text-sm text-slate-400">Loading learning map…</p></div>
+        </div>
+      )}
 
-          // 2. Дополнительное свечение при наведении мышки (сделано тоньше и прозрачнее)
-          if (isHovered) {
-            ctx.beginPath();
-            ctx.arc(node.x, node.y, size * 2.5, 0, 2 * Math.PI, false);
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
-            ctx.fill();
-          }
+      {hasFailed && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#090d15] p-6 text-center">
+          <div><p className="text-lg font-semibold">Could not load this plan</p><p className="mt-2 text-sm text-slate-500">Choose another plan or refresh the page.</p></div>
+        </div>
+      )}
 
-          // 3. Отрисовка самой звезды
-          ctx.fillStyle = starColor;
-          drawStar(ctx, node.x, node.y, 4, size, size / 2.5);
-        }}
+      {!isLoading && !hasFailed && graphData?.nodes?.length === 0 && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center p-6 text-center">
+          <div><p className="text-lg font-semibold">This plan has no lessons</p><p className="mt-2 text-sm text-slate-500">Create a new plan to continue.</p></div>
+        </div>
+      )}
 
-        onNodeHover={(node) => {
-          if (containerRef.current) {
-            containerRef.current.style.cursor = node ? 'pointer' : 'default';
-          }
-          setHoveredNode(node);
-        }}
-        onNodeClick={(node) => {
-          if (onNodeClick) onNodeClick(node);
-          if (fgRef.current) {
-            fgRef.current.centerAt(node.x, node.y, 1000);
-            fgRef.current.zoom(2.5, 1000);
-          }
-        }}
-        
-        minZoom={0.5}
-        maxZoom={4}
-      />
+      {!isLoading && !hasFailed && graphData?.nodes?.length > 0 && (
+        <ForceGraph2D
+          ref={graphRef}
+          width={dimensions.width}
+          height={dimensions.height}
+          graphData={graphData}
+          backgroundColor="rgba(0,0,0,0)"
+          nodeCanvasObject={paintNode}
+          nodePointerAreaPaint={paintPointerArea}
+          nodeLabel=""
+          nodeRelSize={5}
+          linkColor={(link) => link.target?.unlocked ? 'rgba(74, 222, 128, 0.25)' : 'rgba(125, 211, 252, 0.16)'}
+          linkWidth={1.2}
+          warmupTicks={35}
+          cooldownTicks={70}
+          enableNodeDrag={false}
+          minZoom={0.55}
+          maxZoom={4}
+          onNodeHover={setHoveredNode}
+          onNodeClick={selectNode}
+          onEngineStop={() => graphRef.current?.zoomToFit(350, 72)}
+        />
+      )}
 
-      {/* Glassmorphism Hover Tooltip */}
-      {hoveredNode && (
-        <div 
-          className="absolute z-50 pointer-events-none transition-opacity duration-200"
-          style={{ 
-            left: mousePos.x + 20, 
-            top: mousePos.y + 20,
-          }}
-        >
-          <div className="bg-[#0B0C10]/80 backdrop-blur-md border border-cyan-500/30 rounded-xl p-4 w-72 shadow-[0_0_20px_rgba(0,255,255,0.15)] text-left flex flex-col gap-2 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-cyan-500/10 rounded-full blur-2xl -mr-12 -mt-12"></div>
-            
-            <h3 className="font-bold text-cyan-400 text-[13px] uppercase tracking-wider truncate border-b border-cyan-500/20 pb-2 mb-1">
-              {hoveredNode.name}
-            </h3>
-            
-            <p className="text-xs text-slate-300 leading-relaxed font-sans mb-1">
-              {hoveredNode.desc || 'Harness the cosmic energy.'}
-            </p>
-            
-            <div className="text-[11px] text-slate-400 font-mono mt-1 flex flex-col gap-1">
-              <span>Status: <span className={hoveredNode.unlocked ? "text-cyan-400" : "text-purple-400 font-bold"}>{hoveredNode.unlocked ? "UNLOCKED" : "LOCKED"}</span></span>
-              {!hoveredNode.unlocked && <span>Cost: <span className="text-cyan-400">{hoveredNode.cost || 1} SP</span></span>}
-            </div>
+      {showList && graphData?.nodes?.length > 0 && (
+        <div className="absolute inset-x-4 bottom-4 z-30 max-h-[52%] overflow-y-auto rounded-2xl border border-[var(--border)] bg-[#0c111a]/95 p-3 shadow-2xl backdrop-blur md:inset-x-auto md:left-4 md:w-80">
+          <div className="mb-2 flex items-center justify-between px-1">
+            <p className="text-sm font-semibold">Lessons</p>
+            <span className="text-xs text-slate-500">{graphData.nodes.length}</span>
           </div>
+          <div className="space-y-1">
+            {graphData.nodes.map((node) => {
+              const palette = nodePalette[node.status] || nodePalette.blocked;
+              return (
+                <button key={node.id} className="flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-left hover:bg-white/[0.045]" onClick={() => selectNode(node)}>
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: palette.fill }} />
+                  <span className="min-w-0 flex-1 truncate text-sm text-slate-200">{node.name}</span>
+                  <span className="text-xs text-slate-600">{palette.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {hoveredNode && (
+        <div className="pointer-events-none absolute bottom-5 right-5 z-20 hidden max-w-xs rounded-xl border border-[var(--border)] bg-[#0c111a]/94 p-3 shadow-xl md:block">
+          <p className="font-semibold text-slate-100">{hoveredNode.name}</p>
+          <p className="mt-1 text-xs text-slate-500">{nodePalette[hoveredNode.status]?.label || 'Blocked'} · Click to open</p>
         </div>
       )}
     </div>

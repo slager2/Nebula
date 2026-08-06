@@ -2,7 +2,6 @@ package services
 
 import (
 	"errors"
-	"math"
 	"time"
 
 	"gorm.io/gorm"
@@ -10,19 +9,72 @@ import (
 	"nebula-backend/models"
 )
 
-// CompleteDaily marks a task done, increments streak, recalculates RoutineScore & SyncRate.
-func CompleteDaily(db *gorm.DB, taskID uint) (*models.User, *models.DailyTask, error) {
+func utcDayStart(t time.Time) time.Time {
+	year, month, day := t.UTC().Date()
+	return time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
+}
+
+// RecalculateUserProgress keeps legacy score fields aligned with transparent completion percentages.
+func RecalculateUserProgress(tx *gorm.DB, userID uint) error {
+	dayStart := utcDayStart(time.Now())
+	dayEnd := dayStart.AddDate(0, 0, 1)
+
+	var totalTasks, completedTasks int64
+	if err := tx.Model(&models.DailyTask{}).Where("user_id = ?", userID).Count(&totalTasks).Error; err != nil {
+		return err
+	}
+	if err := tx.Model(&models.DailyTask{}).
+		Where("user_id = ? AND last_done_at >= ? AND last_done_at < ?", userID, dayStart, dayEnd).
+		Count(&completedTasks).Error; err != nil {
+		return err
+	}
+
+	var totalNodes, completedNodes int64
+	if err := tx.Model(&models.StarNode{}).
+		Joins("JOIN constellations ON constellations.id = star_nodes.constellation_id").
+		Where("constellations.user_id = ?", userID).
+		Count(&totalNodes).Error; err != nil {
+		return err
+	}
+	if err := tx.Model(&models.StarNode{}).
+		Joins("JOIN constellations ON constellations.id = star_nodes.constellation_id").
+		Where("constellations.user_id = ? AND star_nodes.is_unlocked = ?", userID, true).
+		Count(&completedNodes).Error; err != nil {
+		return err
+	}
+
+	routineScore := 0.0
+	if totalTasks > 0 {
+		routineScore = float64(completedTasks) / float64(totalTasks) * 100
+	}
+	cognitiveScore := 0.0
+	if totalNodes > 0 {
+		cognitiveScore = float64(completedNodes) / float64(totalNodes) * 100
+	}
+
+	return tx.Model(&models.User{}).Where("id = ?", userID).Updates(map[string]interface{}{
+		"routine_score":   routineScore,
+		"cognitive_score": cognitiveScore,
+		"sync_rate":       (routineScore + cognitiveScore) / 2,
+	}).Error
+}
+
+// CompleteDaily records one habit completion per UTC calendar day.
+func CompleteDaily(db *gorm.DB, taskID uint, userID uint) (*models.User, *models.DailyTask, error) {
 	var user models.User
 	var task models.DailyTask
 
 	err := db.Transaction(func(tx *gorm.DB) error {
 		// Lock the task before checking completion to prevent duplicate rewards.
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&task, taskID).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("id = ? AND user_id = ?", taskID, userID).First(&task).Error; err != nil {
 			return err
 		}
 
-		if task.IsCompleted {
-			return errors.New("task already completed")
+		now := time.Now().UTC()
+		dayStart := utcDayStart(now)
+		if task.LastDoneAt != nil && !task.LastDoneAt.Before(dayStart) {
+			return errors.New("habit already completed today")
 		}
 
 		// Lock user row
@@ -30,69 +82,39 @@ func CompleteDaily(db *gorm.DB, taskID uint) (*models.User, *models.DailyTask, e
 			return err
 		}
 
-		// Mark completed + increment streak
-		task.IsCompleted = true
-		now := time.Now()
-		task.LastDoneAt = &now
-		task.Streak++
-
-		// Stat boost based on type
-		switch task.Type {
-		case "INT":
-			user.StatINT++
-		case "STR":
-			user.StatSTR++
-		case "AGI":
-			user.StatAGI++
+		// Continue a streak only when the previous completion was yesterday.
+		yesterdayStart := dayStart.AddDate(0, 0, -1)
+		if task.LastDoneAt != nil && !task.LastDoneAt.Before(yesterdayStart) && task.LastDoneAt.Before(dayStart) {
+			task.Streak++
+		} else {
+			task.Streak = 1
 		}
+		task.IsCompleted = true
+		task.LastDoneAt = &now
 
 		if err := tx.Save(&task).Error; err != nil {
 			return err
 		}
-
-		// Recalculate RoutineScore: (completed / total * 100) + streak bonuses, clamped to 100
-		var totalTasks int64
-		var completedTasks int64
-		tx.Model(&models.DailyTask{}).Where("user_id = ?", user.ID).Count(&totalTasks)
-		tx.Model(&models.DailyTask{}).Where("user_id = ? AND is_completed = true", user.ID).Count(&completedTasks)
-
-		var score float64
-		if totalTasks > 0 {
-			score = (float64(completedTasks) / float64(totalTasks)) * 100.0
-		}
-
-		// Streak bonus: sum of all streaks * 0.5, capped contribution
-		var streakSum int64
-		tx.Model(&models.DailyTask{}).Where("user_id = ? AND is_completed = true", user.ID).
-			Select("COALESCE(SUM(streak), 0)").Scan(&streakSum)
-		score += float64(streakSum) * 0.5
-
-		// HARD CLAMP: RoutineScore never exceeds 100
-		user.RoutineScore = math.Min(100.0, score)
-
-		// Combo multiplier logic: if combo expired, reset to 1.0; otherwise apply it
-		if user.ComboExpireAt != nil && time.Now().After(*user.ComboExpireAt) {
-			user.ComboMultiplier = 1.0
-			user.ComboExpireAt = nil
-		}
-		// Apply combo multiplier to RoutineScore
-		user.RoutineScore = user.RoutineScore * user.ComboMultiplier
-		user.RoutineScore = math.Min(100.0, user.RoutineScore) // Ensure hard clamp after multiplier
-
-		user.SyncRate = (user.RoutineScore + user.CognitiveScore) / 2.0
-
-		if err := tx.Save(&user).Error; err != nil {
+		taskIDCopy := task.ID
+		if err := tx.Create(&models.ActivityEvent{
+			UserID:      userID,
+			DailyTaskID: &taskIDCopy,
+			EventType:   "habit_completed",
+			OccurredAt:  now,
+		}).Error; err != nil {
 			return err
 		}
-
-		return nil
+		if err := RecalculateUserProgress(tx, userID); err != nil {
+			return err
+		}
+		return tx.First(&user, userID).Error
 	})
 
 	return &user, &task, err
 }
 
-// VerifyNode validates knowledge shard, unlocks node, boosts CognitiveScore.
-func VerifyNode(db *gorm.DB, nodeID uint, userID uint, shard string) (*models.StarNode, *models.User, int, error) {
+// CompleteNode records a learner reflection and schedules the first retrieval review.
+func CompleteNode(db *gorm.DB, nodeID uint, userID uint, reflection string) (*models.StarNode, *models.User, int, error) {
 	var user models.User
 	var node models.StarNode
 	var statusCode int
@@ -104,8 +126,7 @@ func VerifyNode(db *gorm.DB, nodeID uint, userID uint, shard string) (*models.St
 			return err
 		}
 
-		// Fetch node
-		if err := tx.First(&node, nodeID).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&node, nodeID).Error; err != nil {
 			statusCode = 404
 			return err
 		}
@@ -123,13 +144,19 @@ func VerifyNode(db *gorm.DB, nodeID uint, userID uint, shard string) (*models.St
 
 		if node.IsUnlocked {
 			statusCode = 400
-			return errors.New("node already verified")
+			return errors.New("lesson already completed")
 		}
 
 		// Parent chain check: verify entire unlock chain is satisfied
 		if node.ParentNodeID != nil {
 			currentNodeID := node.ParentNodeID
+			visited := make(map[uint]bool)
 			for currentNodeID != nil {
+				if visited[*currentNodeID] {
+					statusCode = 409
+					return errors.New("invalid prerequisite cycle")
+				}
+				visited[*currentNodeID] = true
 				var parent models.StarNode
 				if err := tx.First(&parent, *currentNodeID).Error; err != nil {
 					statusCode = 404
@@ -137,25 +164,42 @@ func VerifyNode(db *gorm.DB, nodeID uint, userID uint, shard string) (*models.St
 				}
 				if !parent.IsUnlocked {
 					statusCode = 403
-					return errors.New("parent skill chain not fully verified")
+					return errors.New("complete prerequisite lessons first")
+				}
+				if parent.ConstellationID != node.ConstellationID {
+					statusCode = 409
+					return errors.New("invalid cross-plan prerequisite")
 				}
 				currentNodeID = parent.ParentNodeID
 			}
 		}
 
-		// Mutation
+		now := time.Now().UTC()
+		firstReview := now.AddDate(0, 0, 1)
 		node.IsUnlocked = true
-		node.KnowledgeShard = shard
-
-		// Boost CognitiveScore to 100 on successful verification
-		user.CognitiveScore = 100.0
-		user.SyncRate = (user.RoutineScore + user.CognitiveScore) / 2.0
-
-		if err := tx.Save(&user).Error; err != nil {
+		node.KnowledgeShard = reflection
+		node.LearnedAt = &now
+		node.NextReviewAt = &firstReview
+		node.ReviewCount = 0
+		if err := tx.Save(&node).Error; err != nil {
 			statusCode = 500
 			return err
 		}
-		if err := tx.Save(&node).Error; err != nil {
+		nodeIDCopy := node.ID
+		if err := tx.Create(&models.ActivityEvent{
+			UserID:     userID,
+			StarNodeID: &nodeIDCopy,
+			EventType:  "lesson_completed",
+			OccurredAt: now,
+		}).Error; err != nil {
+			statusCode = 500
+			return err
+		}
+		if err := RecalculateUserProgress(tx, userID); err != nil {
+			statusCode = 500
+			return err
+		}
+		if err := tx.First(&user, userID).Error; err != nil {
 			statusCode = 500
 			return err
 		}
@@ -166,17 +210,52 @@ func VerifyNode(db *gorm.DB, nodeID uint, userID uint, shard string) (*models.St
 	return &node, &user, statusCode, err
 }
 
-// ReviewNode handles spaced repetition review logic for knowledge shards.
-// quality must be "hard", "good", or "easy".
-// Returns: updated node, updated user, HTTP status code, error.
+var reviewIntervals = []time.Duration{
+	24 * time.Hour,
+	3 * 24 * time.Hour,
+	7 * 24 * time.Hour,
+	14 * 24 * time.Hour,
+	30 * 24 * time.Hour,
+	60 * 24 * time.Hour,
+}
+
+func calculateReviewSchedule(stage int, quality string, now time.Time) (int, time.Time, error) {
+	if stage < 0 {
+		stage = 0
+	}
+	if stage >= len(reviewIntervals) {
+		stage = len(reviewIntervals) - 1
+	}
+	switch quality {
+	case "again":
+		if stage > 0 {
+			stage--
+		}
+		return stage, now.Add(10 * time.Minute), nil
+	case "hard":
+		return stage, now.Add(24 * time.Hour), nil
+	case "good":
+		stage++
+	case "easy":
+		stage += 2
+	default:
+		return stage, time.Time{}, errors.New("invalid quality value: must be again, hard, good, or easy")
+	}
+	if stage >= len(reviewIntervals) {
+		stage = len(reviewIntervals) - 1
+	}
+	return stage, now.Add(reviewIntervals[stage]), nil
+}
+
+// ReviewNode records a retrieval attempt and advances an explainable review stage.
 func ReviewNode(db *gorm.DB, nodeID uint, userID uint, quality string) (*models.StarNode, *models.User, int, error) {
 	var user models.User
 	var node models.StarNode
 	var statusCode int
 
 	// Validate quality parameter
-	if quality != "hard" && quality != "good" && quality != "easy" {
-		return nil, nil, 400, errors.New("invalid quality value: must be hard, good, or easy")
+	if quality != "again" && quality != "hard" && quality != "good" && quality != "easy" {
+		return nil, nil, 400, errors.New("invalid quality value: must be again, hard, good, or easy")
 	}
 
 	err := db.Transaction(func(tx *gorm.DB) error {
@@ -215,50 +294,30 @@ func ReviewNode(db *gorm.DB, nodeID uint, userID uint, quality string) (*models.
 			return errors.New("node review is not due yet")
 		}
 
-		// Apply spacing intervals based on quality and ReviewCount
-		// SM-2 variant: "hard" = short review, "good"/"easy" = longer intervals
-		switch quality {
-		case "hard":
-			// Hard: 10 minute re-review, do NOT increment ReviewCount
-			nextReview := now.Add(10 * time.Minute)
-			node.NextReviewAt = &nextReview
-			// ReviewCount stays the same
-
-		case "good":
-			// Good: increment ReviewCount, then schedule (ReviewCount * 2) days
-			node.ReviewCount++
-			if node.ReviewCount > 30 {
-				node.ReviewCount = 30
-			}
-			nextReview := now.AddDate(0, 0, node.ReviewCount*2)
-			node.NextReviewAt = &nextReview
-
-		case "easy":
-			// Easy: increment ReviewCount, then schedule (ReviewCount * 4) days
-			node.ReviewCount++
-			// Cap ReviewCount at 30 to prevent excessive spacing intervals
-			if node.ReviewCount > 30 {
-				node.ReviewCount = 30
-			}
-			nextReview := now.AddDate(0, 0, node.ReviewCount*4)
-			node.NextReviewAt = &nextReview
-		}
-
-		// Cognitive Boost: +5 to CognitiveScore, hard-capped at 100
-		user.CognitiveScore = math.Min(100.0, user.CognitiveScore+5.0)
-
-		// Recalculate SyncRate: (RoutineScore + CognitiveScore) / 2
-		user.SyncRate = (user.RoutineScore + user.CognitiveScore) / 2.0
-
-		// Persist changes to database
-		if err := tx.Save(&user).Error; err != nil {
-			statusCode = 500
+		stage, nextReview, err := calculateReviewSchedule(node.ReviewCount, quality, now)
+		if err != nil {
+			statusCode = 400
 			return err
 		}
+		node.ReviewCount = stage
+		node.NextReviewAt = &nextReview
+		node.LastReviewedAt = &now
 		if err := tx.Save(&node).Error; err != nil {
 			statusCode = 500
 			return err
 		}
+		nodeIDCopy := node.ID
+		if err := tx.Create(&models.ActivityEvent{
+			UserID:     userID,
+			StarNodeID: &nodeIDCopy,
+			EventType:  "review_completed",
+			Quality:    quality,
+			OccurredAt: now,
+		}).Error; err != nil {
+			statusCode = 500
+			return err
+		}
+		statusCode = 200
 
 		return nil
 	})
@@ -290,8 +349,7 @@ func DeleteConstellation(db *gorm.DB, constellationID uint, userID uint) (int, e
 		if err := tx.Delete(&constellation).Error; err != nil {
 			return err
 		}
-
-		return nil
+		return RecalculateUserProgress(tx, userID)
 	})
 
 	statusCode := 200

@@ -1,165 +1,118 @@
+import { useEffect } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import useStore from '../store/useStore';
-import { useEffect } from 'react';
 
 const navItems = [
-  { to: '/profile', label: 'OPERATOR', icon: '⊕' },
-  { to: '/terminal', label: 'TERMINAL', icon: '⌘' },
-  { to: '/forge', label: 'FORGE', icon: '✦' },
-  { to: '/archive', label: 'ARCHIVE', icon: '📚' },
-  { to: '/universe', label: 'UNIVERSE', icon: '🌌' },
+  { to: '/terminal', label: 'Today', icon: 'home' },
+  { to: '/forge', label: 'Forge', icon: 'spark' },
+  { to: '/archive', label: 'Library', icon: 'book' },
+  { to: '/universe', label: 'Map', icon: 'map' },
+  { to: '/profile', label: 'Profile', icon: 'user' },
 ];
 
-function getSyncState(rate) {
-  if (rate >= 80) return { 
-    color: '#22d3ee', 
-    label: 'OPTIMAL', 
-    borderColor: 'rgba(34,211,238,0.25)', 
-    glowColor: 'rgba(34,211,238,0.15)',
-    flicker: false 
+function Icon({ name, className = 'h-5 w-5' }) {
+  const paths = {
+    home: <><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10"/><path d="M9.5 20v-6h5v6"/></>,
+    spark: <><path d="m12 3 1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7L12 3Z"/><path d="m19 16 .7 2.3L22 19l-2.3.7L19 22l-.7-2.3L16 19l2.3-.7L19 16Z"/></>,
+    book: <><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v16H6.5A2.5 2.5 0 0 0 4 21.5v-16Z"/><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H13v16h4.5a2.5 2.5 0 0 1 2.5 2.5v-16Z"/></>,
+    map: <><circle cx="6" cy="15" r="2"/><circle cx="12" cy="7" r="2"/><circle cx="18" cy="14" r="2"/><path d="m7.5 13.5 3-5M13.7 8.3l2.6 4.3M8 15h8"/></>,
+    user: <><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></>,
   };
-  if (rate >= 50) return { 
-    color: '#a78bfa', 
-    label: 'NOMINAL', 
-    borderColor: 'rgba(167,139,250,0.2)', 
-    glowColor: 'rgba(167,139,250,0.1)',
-    flicker: false 
-  };
-  return { 
-    color: '#f87171', 
-    label: 'CRITICAL', 
-    borderColor: 'rgba(248,113,113,0.3)', 
-    glowColor: 'rgba(248,113,113,0.15)',
-    flicker: true 
-  };
+  return <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>;
+}
+
+function Navigation({ mobile = false }) {
+  return (
+    <nav aria-label="Primary navigation" className={mobile ? 'grid grid-cols-5' : 'flex flex-col gap-1.5'}>
+      {navItems.map((item) => (
+        <NavLink
+          key={item.to}
+          to={item.to}
+          className={({ isActive }) => mobile
+            ? `flex min-h-16 flex-col items-center justify-center gap-1 text-[11px] font-semibold ${isActive ? 'text-sky-300' : 'text-slate-500'}`
+            : `flex min-h-11 items-center gap-3 rounded-xl px-3.5 text-sm font-semibold transition-colors ${isActive ? 'bg-sky-400/10 text-sky-200' : 'text-slate-400 hover:bg-white/[0.035] hover:text-slate-100'}`
+          }
+        >
+          <Icon name={item.icon} className={mobile ? 'h-5 w-5' : 'h-[19px] w-[19px]'} />
+          <span>{item.label}</span>
+        </NavLink>
+      ))}
+    </nav>
+  );
 }
 
 export default function GlobalLayout() {
-  const fetchProfile = useStore((s) => s.fetchProfile);
-  const user = useStore((s) => s.user);
+  const fetchProfile = useStore((state) => state.fetchProfile);
+  const fetchLearningToday = useStore((state) => state.fetchLearningToday);
+  const user = useStore((state) => state.user);
+  const today = useStore((state) => state.learningToday);
 
   useEffect(() => {
     fetchProfile();
-  }, [fetchProfile]);
+    fetchLearningToday();
+  }, [fetchProfile, fetchLearningToday]);
 
-  const syncRate = user?.SyncRate ?? 0;
-  const syncState = getSyncState(syncRate);
+  const plan = today?.active_plan;
+  const progress = plan?.total_nodes ? Math.round((plan.completed_nodes / plan.total_nodes) * 100) : 0;
 
   return (
-    <div className="w-full h-screen bg-[#030014] overflow-hidden flex text-white font-['Inter',system-ui,sans-serif]">
-      {/* Sidebar */}
-      <aside
-        className="w-64 flex flex-col bg-black/60 backdrop-blur-xl border-r relative shrink-0 transition-all duration-500"
-        style={{
-          borderColor: syncState.borderColor,
-          boxShadow: syncRate < 50
-            ? `inset -2px 0 20px ${syncState.glowColor}`
-            : syncRate >= 80
-              ? `inset -2px 0 30px ${syncState.glowColor}`
-              : 'none',
-        }}
-      >
-        {/* Neon edge — dynamic color */}
-        <div
-          className="absolute right-0 top-0 bottom-0 w-px transition-colors duration-500"
-          style={{
-            background: `linear-gradient(to bottom, transparent, ${syncState.color}60, transparent)`,
-          }}
-        />
+    <div className="min-h-dvh bg-[var(--bg)] text-[var(--text)] lg:flex">
+      <a href="#main-content" className="fixed left-3 top-3 z-[100] -translate-y-20 rounded-lg bg-sky-300 px-4 py-2 font-semibold text-slate-950 focus:translate-y-0">
+        Skip to content
+      </a>
 
-        <div className="px-6 pt-8 pb-6">
-          <h1 className="text-xl font-black tracking-[0.3em] text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400">
-            NEBULA
-          </h1>
-          <p className="text-[10px] tracking-[0.2em] text-slate-500 mt-1 uppercase">
-            NEBULA OS // KNOWLEDGE SYNTHESIS
-          </p>
+      <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-[var(--border-soft)] bg-[#0b1018]/95 p-4 lg:flex">
+        <div className="mb-8 flex items-center gap-3 px-2 pt-2">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-sky-300/20 bg-sky-300/10 text-sky-200">
+            <Icon name="spark" />
+          </div>
+          <div>
+            <p className="text-base font-bold tracking-tight text-white">Nebula</p>
+            <p className="text-xs text-slate-500">Learning workspace</p>
+          </div>
         </div>
 
-        {/* Separator */}
-        <div className="mx-4 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+        <Navigation />
 
-        {/* Nav */}
-        <nav className="flex-1 flex flex-col gap-1 px-3 py-4">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium tracking-wider transition-all duration-200 group ${
-                  isActive
-                    ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.1)]'
-                    : 'text-slate-500 hover:text-slate-300 hover:bg-white/[0.03] border border-transparent'
-                }`
-              }
-            >
-              <span className="text-base group-hover:scale-110 transition-transform">{item.icon}</span>
-              <span>{item.label}</span>
-            </NavLink>
-          ))}
-        </nav>
-
-        {/* Bottom user card — Sync Rate indicator */}
-        <div
-          className="mx-3 mb-4 p-4 rounded-lg border transition-all duration-500"
-          style={{
-            background: `linear-gradient(135deg, ${syncState.color}05, transparent)`,
-            borderColor: syncState.borderColor,
-            boxShadow: syncRate >= 80 ? `0 0 20px ${syncState.glowColor}` : 'none',
-          }}
-        >
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold tracking-wider text-slate-400">
-              {user?.Username || 'OPERATOR'}
-            </span>
-            <span
-              className="text-[10px] font-bold tracking-wider uppercase"
-              style={{ color: syncState.color }}
-            >
-              {syncState.label}
-            </span>
-          </div>
-
-          {/* Sync Rate Bar */}
-          <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-            <div
-              className="h-1.5 rounded-full transition-all duration-700"
-              style={{
-                width: `${syncRate}%`,
-                background: syncState.color,
-                boxShadow: `0 0 8px ${syncState.glowColor}`,
-              }}
-            />
-          </div>
-           <div className="flex items-center justify-between mt-1.5">
-             <p className="text-[10px] text-slate-600 font-mono">SYNC RATE</p>
-             <p
-               className={`text-sm font-black font-mono ${syncRate < 50 ? 'animate-flicker' : ''}`}
-               style={{ color: syncState.color, textShadow: `0 0 8px ${syncState.glowColor}` }}
-             >
-               {syncRate.toFixed(0)}%
-             </p>
-           </div>
-
-          {/* Entropy warning pulse for low sync */}
-          {syncRate < 50 && (
-            <div
-              className="mt-2 text-[9px] font-mono text-center tracking-wider uppercase animate-pulse"
-              style={{ color: '#f87171' }}
-            >
-              ⚠ ENTROPY DETECTED
+        <div className="mt-auto space-y-3">
+          {plan && (
+            <div className="rounded-xl border border-[var(--border-soft)] bg-white/[0.025] p-3.5">
+              <p className="text-xs font-semibold text-slate-500">Current plan</p>
+              <p className="mt-1 truncate text-sm font-semibold text-slate-200">{plan.topic}</p>
+              <div className="progress-track mt-3"><div className="progress-fill" style={{ width: `${progress}%` }} /></div>
+              <div className="mt-2 flex justify-between text-xs text-slate-500">
+                <span>{plan.completed_nodes}/{plan.total_nodes} lessons</span>
+                <span>{progress}%</span>
+              </div>
             </div>
           )}
+          <div className="flex items-center gap-3 px-2 py-1.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-400/10 text-violet-200"><Icon name="user" className="h-4 w-4" /></div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-slate-300">{user?.Username || 'Learner'}</p>
+              <p className="text-xs text-slate-600">{today?.due_review_count || 0} reviews due</p>
+            </div>
+          </div>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-y-auto relative">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/5 via-transparent to-transparent pointer-events-none" />
-        <div className="relative z-10 h-full">
+      <div className="min-w-0 flex-1">
+        <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-[var(--border-soft)] bg-[#0b1018]/90 px-4 backdrop-blur lg:hidden">
+          <div className="flex items-center gap-2.5">
+            <span className="text-sky-300"><Icon name="spark" /></span>
+            <span className="font-bold">Nebula</span>
+          </div>
+          <span className="status-pill">{today?.due_review_count || 0} due</span>
+        </header>
+
+        <main id="main-content" className="min-h-dvh min-w-0 overflow-x-hidden">
           <Outlet />
+        </main>
+
+        <div className="fixed inset-x-0 bottom-0 z-50 border-t border-[var(--border)] bg-[#0b1018]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
+          <Navigation mobile />
         </div>
-      </main>
+      </div>
     </div>
   );
 }

@@ -15,7 +15,8 @@ function App() {
         <Route path="/forge" element={<Forge />} />
         <Route path="/archive" element={<Archive />} />
         <Route path="/universe" element={<Universe />} />
-        <Route path="*" element={<Navigate to="/profile" replace />} />
+        <Route path="/" element={<Navigate to="/terminal" replace />} />
+        <Route path="*" element={<Navigate to="/terminal" replace />} />
       </Route>
     </Routes>
   );

@@ -3,6 +3,7 @@ package models
 import (
 	"database/sql/driver"
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -33,9 +34,12 @@ type Constellation struct {
 
 // AIPayload stores the AI-generated study content for a skill node.
 type AIPayload struct {
-	Overview      string   `json:"overview"`
-	KeyConcepts   []string `json:"key_concepts"`
-	PracticalTask string   `json:"practical_task"`
+	Overview           string   `json:"overview"`
+	KeyConcepts        []string `json:"key_concepts"`
+	PracticalTask      string   `json:"practical_task"`
+	LearningObjective  string   `json:"learning_objective"`
+	CompletionCriteria string   `json:"completion_criteria"`
+	RecallPrompt       string   `json:"recall_prompt"`
 }
 
 // Scan implements sql.Scanner for reading JSONB from Postgres
@@ -48,7 +52,7 @@ func (a *AIPayload) Scan(value interface{}) error {
 	if !ok {
 		s, ok2 := value.(string)
 		if !ok2 {
-			return nil
+			return fmt.Errorf("unsupported AIPayload database type %T", value)
 		}
 		b = []byte(s)
 	}
@@ -72,6 +76,8 @@ type StarNode struct {
 	IsUnlocked      bool      `gorm:"default:false"`
 	ReviewCount     int       `gorm:"default:0"`
 	NextReviewAt    *time.Time
+	LearnedAt       *time.Time
+	LastReviewedAt  *time.Time
 }
 
 type DailyTask struct {
@@ -82,4 +88,14 @@ type DailyTask struct {
 	Streak      int    `gorm:"default:0"`
 	IsCompleted bool   `gorm:"default:false"` // Resets at midnight via cron/job
 	LastDoneAt  *time.Time
+}
+
+type ActivityEvent struct {
+	ID          uint `gorm:"primaryKey"`
+	UserID      uint `gorm:"index;not null"`
+	StarNodeID  *uint
+	DailyTaskID *uint
+	EventType   string    `gorm:"type:varchar(32);index;not null"`
+	Quality     string    `gorm:"type:varchar(16)"`
+	OccurredAt  time.Time `gorm:"index;not null"`
 }

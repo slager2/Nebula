@@ -9,6 +9,8 @@ Nebula is a web application for organizing learning topics as interactive skill 
 - Store summaries, key concepts, and practical tasks for each skill node.
 - Unlock nodes by submitting knowledge notes and following prerequisite chains.
 - Schedule node reviews with spaced-repetition intervals.
+- Use a daily learning dashboard that prioritizes due reviews and the next available lesson.
+- Track real lesson, review, and habit activity without simulated telemetry.
 - Create and complete daily tasks across cognitive, strength, and agility categories.
 - Track routine, cognitive, and synchronization scores.
 - Browse generated constellations and verified knowledge in the archive.
@@ -134,6 +136,7 @@ cd frontend
 npm ci
 npm run lint
 npm run build
+npm run test:star-click
 ```
 
 The live Groq integration test is opt-in because it consumes API quota:
@@ -154,10 +157,13 @@ RUN_GROQ_INTEGRATION=1 go test -run TestGroqIntegration ./services
 | `PUT` | `/api/v1/profile/physics` | Update physical metrics |
 | `GET` | `/api/v1/universe` | Return unlocked universe data |
 | `GET` | `/api/v1/archive` | Return constellations and knowledge nodes |
+| `GET` | `/api/v1/learning/today` | Return today's reviews, next lesson, habits, and real activity |
+| `GET` | `/api/v1/constellations` | Return learning plans with progress summaries |
 | `POST` | `/api/v1/constellations/generate` | Generate and persist a skill tree |
 | `GET` | `/api/v1/constellations/:id` | Return graph data for a constellation |
 | `DELETE` | `/api/v1/constellations/:id` | Delete a constellation |
-| `POST` | `/api/v1/nodes/:id/verify` | Verify and unlock a node |
+| `POST` | `/api/v1/nodes/:id/complete` | Save a reflection and complete a lesson |
+| `POST` | `/api/v1/nodes/:id/verify` | Compatibility alias for lesson completion |
 | `POST` | `/api/v1/nodes/:id/review` | Record a spaced-repetition review |
 | `GET` | `/api/v1/dailies` | List daily tasks |
 | `POST` | `/api/v1/dailies` | Create a daily task |

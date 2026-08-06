@@ -21,11 +21,15 @@ func Connect() {
 
 	var db *gorm.DB
 	var err error
+	logMode := logger.Warn
+	if os.Getenv("GORM_LOG_LEVEL") == "info" {
+		logMode = logger.Info
+	}
 
 	// Retry connection loop
 	for i := 0; i < 10; i++ {
 		db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
-			Logger: logger.Default.LogMode(logger.Info),
+			Logger: logger.Default.LogMode(logMode),
 		})
 		if err == nil {
 			break
@@ -39,9 +43,16 @@ func Connect() {
 	}
 
 	log.Println("Connected to Database")
+	sqlDB, err := db.DB()
+	if err != nil {
+		log.Fatal("Failed to configure database pool. \n", err)
+	}
+	sqlDB.SetMaxOpenConns(20)
+	sqlDB.SetMaxIdleConns(5)
+	sqlDB.SetConnMaxLifetime(time.Hour)
 
 	log.Println("Running migrations...")
-	err = db.AutoMigrate(&models.User{}, &models.Constellation{}, &models.StarNode{}, &models.DailyTask{})
+	err = db.AutoMigrate(&models.User{}, &models.Constellation{}, &models.StarNode{}, &models.DailyTask{}, &models.ActivityEvent{})
 	if err != nil {
 		log.Fatal("Failed to migrate. \n", err)
 	}
