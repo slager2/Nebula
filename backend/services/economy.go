@@ -16,8 +16,8 @@ func CompleteDaily(db *gorm.DB, taskID uint) (*models.User, *models.DailyTask, e
 	var task models.DailyTask
 
 	err := db.Transaction(func(tx *gorm.DB) error {
-		// Fetch task
-		if err := tx.First(&task, taskID).Error; err != nil {
+		// Lock the task before checking completion to prevent duplicate rewards.
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&task, taskID).Error; err != nil {
 			return err
 		}
 
@@ -186,8 +186,8 @@ func ReviewNode(db *gorm.DB, nodeID uint, userID uint, quality string) (*models.
 			return err
 		}
 
-		// Fetch the node
-		if err := tx.First(&node, nodeID).Error; err != nil {
+		// Fetch and lock the node so concurrent reviews cannot reuse stale state.
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&node, nodeID).Error; err != nil {
 			statusCode = 404
 			return err
 		}
@@ -210,6 +210,10 @@ func ReviewNode(db *gorm.DB, nodeID uint, userID uint, quality string) (*models.
 		}
 
 		now := time.Now()
+		if node.NextReviewAt != nil && now.Before(*node.NextReviewAt) {
+			statusCode = 409
+			return errors.New("node review is not due yet")
+		}
 
 		// Apply spacing intervals based on quality and ReviewCount
 		// SM-2 variant: "hard" = short review, "good"/"easy" = longer intervals
@@ -223,6 +227,9 @@ func ReviewNode(db *gorm.DB, nodeID uint, userID uint, quality string) (*models.
 		case "good":
 			// Good: increment ReviewCount, then schedule (ReviewCount * 2) days
 			node.ReviewCount++
+			if node.ReviewCount > 30 {
+				node.ReviewCount = 30
+			}
 			nextReview := now.AddDate(0, 0, node.ReviewCount*2)
 			node.NextReviewAt = &nextReview
 

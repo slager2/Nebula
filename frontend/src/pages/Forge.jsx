@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import useStore from '../store/useStore';
 import CosmicTree from '../CosmicTree';
+import { API } from '../api';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
-
-function NodeInspector({ node, user, constellationId, onClose, onConstellationDeleted }) {
+function NodeInspector({ node, constellationId, onClose, onConstellationDeleted }) {
   const verifyNode = useStore((s) => s.verifyNode);
   const deleteConstellation = useStore((s) => s.deleteConstellation);
   const [verifying, setVerifying] = useState(false);
@@ -17,20 +16,6 @@ function NodeInspector({ node, user, constellationId, onClose, onConstellationDe
     if (node.unlocked) return '';
     try { return localStorage.getItem(draftKey) || ''; } catch { return ''; }
   });
-
-  // Reset state when node changes
-  useEffect(() => {
-    setErrorMsg(null);
-    if (node.unlocked) {
-      setKnowledgeShard('');
-      return;
-    }
-    try {
-      setKnowledgeShard(localStorage.getItem(`draft_${node.id}`) || '');
-    } catch {
-      setKnowledgeShard('');
-    }
-  }, [node.id, node.unlocked]);
 
   // Auto-save draft to localStorage on every keystroke
   useEffect(() => {
@@ -55,7 +40,7 @@ function NodeInspector({ node, user, constellationId, onClose, onConstellationDe
     const result = await verifyNode(node.id, knowledgeShard.trim());
     setVerifying(false);
     if (result.ok) {
-      try { localStorage.removeItem(draftKey); } catch {}
+      try { localStorage.removeItem(draftKey); } catch { /* Storage may be unavailable. */ }
       setKnowledgeShard('');
     } else {
       setErrorMsg(result.data?.error || 'Verification failed.');
@@ -267,7 +252,7 @@ export default function Forge() {
   const user = useStore((s) => s.user);
   const activeNode = useStore((s) => s.activeNode);
   const setActiveNode = useStore((s) => s.setActiveNode);
-  const [constellationId, setConstellationId] = useState(1);
+  const [constellationId, setConstellationId] = useState(null);
   const [topicInput, setTopicInput] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [genError, setGenError] = useState(null);
@@ -294,11 +279,11 @@ export default function Forge() {
       setConstellationId(null);
       setActiveNode(null);
       setTimeout(() => setConstellationId(data.constellation.ID), 50);
+      setTopicInput('');
     } catch {
       setGenError('Network error. Is the backend running?');
     } finally {
       setIsGenerating(false);
-      setTopicInput('');
     }
   };
 
@@ -334,8 +319,8 @@ export default function Forge() {
       {/* Right Panel — Contextual */}
       {activeNode ? (
         <NodeInspector
+          key={activeNode.id}
           node={activeNode}
-          user={user}
           constellationId={constellationId}
           onClose={() => setActiveNode(null)}
           onConstellationDeleted={() => setConstellationId(null)}

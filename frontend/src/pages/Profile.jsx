@@ -81,8 +81,6 @@ export default function Profile() {
   const routineScore = user.RoutineScore ?? 0;
   const cognitiveScore = user.CognitiveScore ?? 0;
   const syncColor = getSyncColor(syncRate);
-  const accentColor = syncRate < 50 ? '#f87171' : '#06b6d4';
-  const accentGlow = syncRate < 50 ? 'rgba(248,113,113,0.6)' : 'rgba(6,182,212,0.8)';
 
   const currentHeight = parseFloat(height || user.Height) || 0;
   const currentWeight = parseFloat(weight || user.Weight) || 0;

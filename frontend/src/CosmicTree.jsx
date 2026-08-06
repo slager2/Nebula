@@ -1,8 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
 import useStore from './store/useStore';
-
-const API = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+import { API } from './api';
 
 const drawStar = (ctx, cx, cy, spikes, outerRadius, innerRadius) => {
   let rot = (Math.PI / 2) * 3;
@@ -36,7 +35,8 @@ export default function CosmicTree({ constellationId, onNodeClick }) {
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
   const [hoveredNode, setHoveredNode] = useState(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-  const [fetchError, setFetchError] = useState(false);
+  const [loadedConstellationId, setLoadedConstellationId] = useState(null);
+  const [failedConstellationId, setFailedConstellationId] = useState(null);
 
   // Handle container resize
   useEffect(() => {
@@ -49,11 +49,11 @@ export default function CosmicTree({ constellationId, onNodeClick }) {
       }
     };
     
-    window.addEventListener('resize', updateDimensions);
+    const observer = new ResizeObserver(updateDimensions);
+    if (containerRef.current) observer.observe(containerRef.current);
     updateDimensions();
-    setTimeout(updateDimensions, 100);
 
-    return () => window.removeEventListener('resize', updateDimensions);
+    return () => observer.disconnect();
   }, []);
 
   const handleMouseMove = useCallback((e) => {
@@ -69,9 +69,9 @@ export default function CosmicTree({ constellationId, onNodeClick }) {
   // Fetch constellation data — no dummy data fallback
   useEffect(() => {
     if (!constellationId) return;
-    setFetchError(false);
+    const controller = new AbortController();
     
-    fetch(`${API}/constellations/${constellationId}`)
+    fetch(`${API}/constellations/${constellationId}`, { signal: controller.signal })
       .then((res) => {
          if (!res.ok) throw new Error("API not ready");
          return res.json();
@@ -79,16 +79,21 @@ export default function CosmicTree({ constellationId, onNodeClick }) {
       .then((data) => {
         if (data.nodes && data.nodes.length > 0) {
           setGraphData({ nodes: data.nodes, links: data.links || [] });
+          setLoadedConstellationId(constellationId);
+          setFailedConstellationId(null);
         } else {
-          setFetchError(true);
+          setFailedConstellationId(constellationId);
           setGraphData(null);
         }
       })
       .catch(err => {
+        if (err.name === 'AbortError') return;
         console.warn("Backend unavailable or tree empty.", err);
-        setFetchError(true);
+        setFailedConstellationId(constellationId);
         setGraphData(null);
       });
+
+    return () => controller.abort();
   }, [constellationId, setGraphData]);
 
   // Настройка физики графа: расталкиваем ноды и удлиняем связи
@@ -106,7 +111,7 @@ export default function CosmicTree({ constellationId, onNodeClick }) {
   }, [graphData]);
 
   // No data — show error state instead of dummy data
-  if (fetchError || !graphData) {
+  if (failedConstellationId === constellationId || loadedConstellationId !== constellationId || !graphData) {
     return (
       <div
         ref={containerRef}
@@ -149,7 +154,7 @@ export default function CosmicTree({ constellationId, onNodeClick }) {
         linkDirectionalParticles={0}
         linkDirectionalParticleSpeed={0.005}
         
-        nodeCanvasObject={(node, ctx, globalScale) => {
+        nodeCanvasObject={(node, ctx) => {
           const isHovered = hoveredNode && hoveredNode.id === node.id;
           const size = isHovered ? 8 : 5;
           

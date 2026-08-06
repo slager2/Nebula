@@ -6,7 +6,7 @@ function getPendingCount(archiveData) {
   let count = 0;
   archiveData.forEach(c => {
     c.nodes?.forEach(n => {
-      if (n.ReviewCount === 0 || (n.NextReviewAt && new Date(n.NextReviewAt) < now)) {
+      if (!n.NextReviewAt || new Date(n.NextReviewAt) <= now) {
         count++;
       }
     });
@@ -25,18 +25,13 @@ export default function Archive() {
 
   useEffect(() => { fetchArchive(); }, [fetchArchive]);
 
-  useEffect(() => {
-    if (archiveData.length > 0 && !selectedConstellationId) {
-      setSelectedConstellationId(archiveData[0].ID);
-    }
-  }, [archiveData, selectedConstellationId]);
-
   const handleSelectConstellation = (id) => {
     setSelectedConstellationId(id);
     setSelectedShardId(null);
   };
 
-  const selectedConstellation = archiveData.find(c => c.ID === selectedConstellationId);
+  const activeConstellationId = selectedConstellationId ?? archiveData[0]?.ID ?? null;
+  const selectedConstellation = archiveData.find(c => c.ID === activeConstellationId);
   const shards                = selectedConstellation?.nodes || [];
   const selectedShard         = shards.find(n => n.ID === selectedShardId);
   const pendingCount          = getPendingCount(archiveData);
@@ -97,7 +92,7 @@ export default function Archive() {
             </div>
           )}
           {archiveData.map(c => {
-            const isActive = selectedConstellationId === c.ID;
+            const isActive = activeConstellationId === c.ID;
             return (
               <button
                 key={c.ID}
@@ -137,7 +132,7 @@ export default function Archive() {
         </div>
 
         <div className="flex-1 overflow-y-auto hidden-scrollbar flex flex-col">
-          {!selectedConstellationId && (
+          {!activeConstellationId && (
             <div className="flex items-center justify-center flex-1">
               <span className="text-[9px] text-slate-700 tracking-[0.3em] uppercase px-4 text-center font-mono">
                 SELECT CONSTELLATION
@@ -145,7 +140,7 @@ export default function Archive() {
             </div>
           )}
 
-          {selectedConstellationId && shards.length === 0 && (
+          {activeConstellationId && shards.length === 0 && (
             <div className="flex items-center justify-center flex-1">
               <span className="text-[9px] text-slate-700 tracking-[0.3em] uppercase px-4 text-center font-mono">
                 NO VERIFIED SHARDS
@@ -153,7 +148,7 @@ export default function Archive() {
             </div>
           )}
 
-          {shards.map((node, idx) => {
+          {shards.map((node) => {
             const isActive = selectedShardId === node.ID;
             return (
               <button

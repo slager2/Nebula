@@ -131,6 +131,14 @@ export default function Universe() {
     return link.isMacroLink ? 1.2 : 0.6;
   }, []);
 
+  const getNodeLabel = useCallback((node) => {
+    const label = document.createElement('div');
+    label.textContent = node.isCore
+      ? node.name
+      : `${node.topic ? node.topic + ' // ' : ''}${node.name}`;
+    return label;
+  }, []);
+
   const hasData = graphData.nodes.length > 1;
 
   return (
@@ -206,7 +214,7 @@ export default function Universe() {
             linkColor={getLinkColor}
             linkWidth={getLinkWidth}
             backgroundColor="rgba(0,0,0,0)"
-            nodeLabel={(node) => node.isCore ? node.name : `${node.topic ? node.topic + ' // ' : ''}${node.name}`}
+            nodeLabel={getNodeLabel}
             nodeRelSize={1}
             enableNodeDrag={true}
             enableZoomInteraction={true}

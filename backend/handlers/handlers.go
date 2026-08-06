@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"log"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/gofiber/fiber/v2"
 	"nebula-backend/database"
@@ -19,12 +21,17 @@ func GenerateConstellation(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid request payload"})
 	}
+	req.Topic = strings.TrimSpace(req.Topic)
+	if req.Topic == "" || utf8.RuneCountInString(req.Topic) > 200 {
+		return c.Status(400).JSON(fiber.Map{"error": "Topic must contain 1-200 characters"})
+	}
 
 	userID := uint(1)
 
 	constellation, nodes, err := services.GenerateConstellation(database.DB, userID, req.Topic)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		log.Printf("Failed to generate constellation: %v", err)
+		return c.Status(502).JSON(fiber.Map{"error": "AI generation failed. Please try again."})
 	}
 
 	return c.JSON(fiber.Map{

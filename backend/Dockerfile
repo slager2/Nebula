@@ -1,32 +1,25 @@
 # Build stage
 FROM golang:1.24-alpine AS builder
 
-RUN apk add --no-cache tzdata
+RUN apk add --no-cache ca-certificates tzdata
 
 WORKDIR /app
 
-# Copy dependency files
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy source code
 COPY . .
-
-# Build the Go app
 RUN go build -o main .
 
 # Run stage
-FROM alpine:latest
-
-RUN apk add --no-cache tzdata
+FROM alpine:3.22
 
 WORKDIR /app
 
-# Copy binary and timezone data from builder
 COPY --from=builder /app/main .
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 
-# Expose port
 EXPOSE 3000
 
-# Run the app
 CMD ["./main"]

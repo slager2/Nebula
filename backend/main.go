@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -14,7 +15,7 @@ import (
 )
 
 func main() {
-	// Load environment variables (like DB credentials, GEMINI_API_KEY)
+	// Load environment variables (like DB credentials and GROQ_API_KEY).
 	err := godotenv.Load()
 	if err != nil {
 		log.Println("Note: .env file not found. Assuming environment variables are injected via OS")
@@ -30,7 +31,14 @@ func main() {
 		AppName: "Cosmic Skill Tree MVP",
 	})
 	app.Use(logger.New())
-	app.Use(cors.New())
+	allowedOrigins := os.Getenv("CORS_ALLOWED_ORIGINS")
+	if allowedOrigins == "" {
+		allowedOrigins = "http://localhost:5173,http://127.0.0.1:5173"
+	}
+	app.Use(cors.New(cors.Config{
+		AllowOrigins: allowedOrigins,
+		AllowHeaders: "Origin, Content-Type, Accept",
+	}))
 
 	api := app.Group("/api/v1")
 
